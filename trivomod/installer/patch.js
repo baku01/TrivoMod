@@ -174,13 +174,27 @@ function writeAtomic(file, buf) {
   fs.renameSync(tmp, file);
 }
 
+/**
+ * Cópia recursiva de pasta. Não usa `fs.cpSync`: no Windows (Node 22) ele corrompe caminhos não-ASCII
+ * (`Usuário` vira `UsuÃ¡rio`), e o caminho dos dados inclui o nome do usuário (ex.: C:\Users\João).
+ */
+function copyDir(from, to) {
+  fs.mkdirSync(to, { recursive: true });
+  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+    const src = path.join(from, entry.name);
+    const dst = path.join(to, entry.name);
+    if (entry.isDirectory()) copyDir(src, dst);
+    else fs.copyFileSync(src, dst);
+  }
+}
+
 /** Copia `src/` para `<dados>/dist`, sem tocar em temas, plugins ou ajustes do usuário. */
 function syncDist(dir = dataDir()) {
   const dist = path.join(dir, "dist");
   if (path.basename(dist) !== "dist") throw new Error("caminho de dist inesperado");
   fs.mkdirSync(dir, { recursive: true });
   fs.rmSync(dist, { recursive: true, force: true });
-  fs.cpSync(SRC, dist, { recursive: true });
+  copyDir(SRC, dist);
   fs.mkdirSync(path.join(dir, "themes"), { recursive: true });
   fs.mkdirSync(path.join(dir, "plugins"), { recursive: true });
   return dist;
@@ -318,4 +332,4 @@ function uninstall(opts = {}) {
   return { app: t.root, icon };
 }
 
-module.exports = { applyBundleIcon, restoreBundleIcon, install, uninstall, status, discover, syncDist, resolveTarget, loaderSource, dataDir, LOADER };
+module.exports = { applyBundleIcon, copyDir, restoreBundleIcon, install, uninstall, status, discover, syncDist, resolveTarget, loaderSource, dataDir, LOADER };

@@ -70,9 +70,10 @@ proc.standardError = errPipe
 
 do {
   try proc.run()
+  // Lê até o EOF antes de esperar: com o pipe cheio o node travaria escrevendo no stderr.
+  let data = errPipe.fileHandleForReading.readDataToEndOfFile()
   proc.waitUntilExit()
   if proc.terminationStatus != 0 {
-    let data = errPipe.fileHandleForReading.readDataToEndOfFile()
     let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     showError(text.isEmpty ? "O instalador encerrou com erro (código \(proc.terminationStatus))." : text)
     exit(proc.terminationStatus)

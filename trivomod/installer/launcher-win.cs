@@ -119,7 +119,8 @@ static class TrivoModInstallerLauncher
                 try { File.Delete(tmpZip); } catch { }
             }
 
-            File.WriteAllText(marker, hash);
+            // Marcador vai dentro de tmpDir: baseDir ainda não existe neste ponto e é criado pelo Move abaixo.
+            File.WriteAllText(Path.Combine(tmpDir, ".ready"), hash);
 
             if (Directory.Exists(baseDir))
             {
@@ -127,8 +128,20 @@ static class TrivoModInstallerLauncher
             }
             if (!Directory.Exists(baseDir))
             {
-                Directory.Move(tmpDir, baseDir);
-                return baseDir;
+                try
+                {
+                    Directory.Move(tmpDir, baseDir);
+                    return baseDir;
+                }
+                catch (IOException)
+                {
+                    // Outra instância pode ter concluído a extração ao mesmo tempo.
+                    if (File.Exists(marker) && File.Exists(Path.Combine(baseDir, "node.exe")))
+                    {
+                        try { Directory.Delete(tmpDir, true); } catch { }
+                        return baseDir;
+                    }
+                }
             }
             return tmpDir;
         }
