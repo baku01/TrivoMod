@@ -47,7 +47,7 @@ function get(url) {
 
 test("pacote de release: CLI roda fora do repositório, em caminho com espaço e acento", (t) => {
   const pkg = stagePackage();
-  t.after(() => fs.rmSync(pkg.base, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(pkg.base, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
 
   assert.match(runCli(pkg, ["paths"]), /dados/);
   runCli(pkg, ["update"]);
@@ -65,9 +65,14 @@ test("pacote de release: instalador gráfico serve a página e o logo", async (t
     env: { ...process.env, TRIVOMOD_DIR: pkg.data },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  t.after(() => {
-    child.kill();
-    fs.rmSync(pkg.base, { recursive: true, force: true });
+  t.after(async () => {
+    // No Windows a pasta só pode ser apagada depois que o processo (com cwd nela) termina de fato.
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise((resolve) => child.once("exit", resolve));
+      child.kill();
+      await exited;
+    }
+    fs.rmSync(pkg.base, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   });
 
   const url = await new Promise((resolve, reject) => {
