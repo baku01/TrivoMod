@@ -1032,14 +1032,90 @@
     ];
   }
 
+  // ------------------------------------------------------------ atualizações (src/main/updater.js)
+  const hasUpdater = typeof native.updateStatus === "function";
+  let updateInfo = null;
+  let updateFetched = false; // pede o estado uma vez por abertura do painel, mesmo que venha null
+  let checkingUpdate = false;
+  async function refreshUpdateInfo() {
+    if (!hasUpdater) return;
+    updateFetched = true;
+    try {
+      updateInfo = await native.updateStatus();
+    } catch {
+      updateInfo = null;
+    }
+    if (ui.open) render();
+  }
+  function updateText(u) {
+    if (!u) return "Novas versões do TrivoMod são baixadas sozinhas do GitHub e entram quando o Trivo reabre.";
+    if (!u.available) return "Indisponível agora (modo seguro ou mod rodando do código-fonte).";
+    if (u.staged) return `Versão ${u.staged} baixada: entra quando você fechar e abrir o Trivo.`;
+    if (!u.enabled) return "Desligado: o TrivoMod só muda quando você rodar o instalador.";
+    if (u.lastError) return `A última verificação falhou (${u.lastError}). Tenta de novo sozinho mais tarde.`;
+    if (u.lastCheck) return `Em dia. Última verificação: ${new Date(u.lastCheck).toLocaleString("pt-BR")}.`;
+    return "Novas versões do TrivoMod são baixadas sozinhas do GitHub e entram quando o Trivo reabre.";
+  }
+  async function checkUpdateNow() {
+    if (checkingUpdate) return;
+    checkingUpdate = true;
+    render();
+    try {
+      const r = await native.checkUpdate();
+      if (r.state === "pronta") toast(`TrivoMod ${r.version} pronto: entra quando o Trivo reabrir.`, { tipo: "sucesso", acao: { rotulo: "Reiniciar agora", run: () => native.restartToUpdate() } });
+      else if (r.state === "em-dia") toast(`Você já está na versão mais nova (${boot.info.version}).`);
+      else if (r.state === "sem-pacote") toast(`A versão ${r.version} ainda não tem pacote de atualização automática; use o instalador.`);
+      else if (r.state === "bloqueada") toast(`A versão ${r.version} não abriu aqui e foi desfeita; espere a próxima.`, { tipo: "erro" });
+      else if (r.state === "erro") toast(`Não deu para verificar: ${r.error}`, { tipo: "erro" });
+    } catch (error) {
+      toast(`Não deu para verificar: ${error && error.message ? error.message : error}`, { tipo: "erro" });
+    } finally {
+      checkingUpdate = false;
+      await refreshUpdateInfo();
+    }
+  }
+  function renderUpdates() {
+    if (!hasUpdater) return [];
+    const u = updateInfo;
+    const usable = Boolean(u && u.available);
+    return [
+      h("h2", {}, "Atualizações"),
+      h("div", { class: "group" },
+        h("div", { class: "item" },
+          h("div", { class: "grow" },
+            h("div", { class: "name" }, "Atualizar automaticamente"),
+            h("div", { class: "desc" }, updateText(u)),
+          ),
+          toggle(settings.autoUpdate !== false, (v) => { settings.autoUpdate = v; save(); refreshUpdateInfo(); render(); }, "Atualizar automaticamente"),
+        ),
+        usable
+          ? h("div", { class: "row" },
+            h("button", { class: "btn", disabled: checkingUpdate, onClick: () => checkUpdateNow() }, checkingUpdate ? "Verificando…" : "Verificar agora"),
+            u.staged ? h("button", { class: "btn primary", onClick: () => native.restartToUpdate() }, "Reiniciar e atualizar") : null,
+          )
+          : null,
+      ),
+    ];
+  }
+  if (hasUpdater && typeof native.onUpdateReady === "function") {
+    native.onUpdateReady((version) => {
+      toast(`TrivoMod ${version} baixado. Ele entra quando você fechar e abrir o Trivo.`, {
+        tipo: "sucesso", duracao: 12000, acao: { rotulo: "Reiniciar agora", run: () => native.restartToUpdate() },
+      });
+      refreshUpdateInfo();
+    });
+  }
+
   function renderAbout() {
     const mac = plat === "mac";
     const k = (...keys) => keys.map((x, i) => [i ? " + " : null, h("kbd", {}, x)]);
+    if (hasUpdater && !updateFetched) refreshUpdateInfo();
     return [
       h("div", { class: "card" },
         h("div", { class: "name" }, `TrivoMod ${boot.info.version}`),
         h("div", { class: "desc" }, "Mod do cliente para o Trivo: temas, layouts, CSS próprio e plugins. Não é afiliado ao Trivo."),
       ),
+      ...renderUpdates(),
       boot.info.safeMode ? h("div", { class: "card" },
         h("div", { class: "name" }, "Modo seguro"),
         h("div", { class: "desc" }, boot.info.safeReason === "auto"

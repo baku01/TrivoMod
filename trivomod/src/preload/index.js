@@ -41,6 +41,15 @@ const { contextBridge, ipcRenderer, webFrame } = require("electron");
   ipcRenderer.on("trivomod:system-accent", (_event, accent) => {
     if (onAccent) onAccent(accent);
   });
+  // Atualização baixada: guarda o aviso se a página ainda não pediu para ouvir.
+  let onUpdate = null;
+  let updateReady = null;
+  ipcRenderer.on("trivomod:update-ready", (_event, payload) => {
+    const version = payload && typeof payload.version === "string" ? payload.version : null;
+    if (!version) return;
+    updateReady = version;
+    if (onUpdate) onUpdate(version);
+  });
 
   contextBridge.exposeInMainWorld("TrivoModNative", {
     boot: {
@@ -70,6 +79,13 @@ const { contextBridge, ipcRenderer, webFrame } = require("electron");
     },
     onSystemAccent: (callback) => {
       onAccent = typeof callback === "function" ? callback : null;
+    },
+    updateStatus: () => ipcRenderer.invoke("trivomod:update-status"),
+    checkUpdate: () => ipcRenderer.invoke("trivomod:check-update"),
+    restartToUpdate: () => ipcRenderer.invoke("trivomod:restart-to-update"),
+    onUpdateReady: (callback) => {
+      onUpdate = typeof callback === "function" ? callback : null;
+      if (onUpdate && updateReady) onUpdate(updateReady);
     },
   });
 

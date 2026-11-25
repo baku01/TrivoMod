@@ -271,6 +271,14 @@ jobs:
           tar -C stage-linux -czf "out/TrivoMod-Installer-${TAG}-linux-x64.tar.gz" TrivoMod
           ls -lh out/
 
+      # Pacote que o atualizador automático do mod baixa (o SHA256SUMS.txt da release o cobre).
+      - name: Gerar pacote do runtime (atualização automática)
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          node trivomod/tools/build-runtime.js out
+          test -f "out/trivomod-runtime-${TAG}.json.gz"
+
       - uses: actions/upload-artifact@v4
         with:
           name: release-linux

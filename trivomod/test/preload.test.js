@@ -55,7 +55,7 @@ test("preload: injeta runtime, depois plugins, depois __ready, e expõe só a AP
   const calls = await runPreload({ boot: bootData });
   assert.equal(calls.exposed.length, 1);
   assert.equal(calls.exposed[0][0], "TrivoModNative");
-  assert.equal(Object.keys(calls.exposed[0][1]).sort().join(), "boot,bootOk,exportBackup,importBackup,leaveSafeMode,onFrameAction,onSystemAccent,onThemesChanged,openFolder,refreshThemeLinks,resetIcon,restartToApplyIcon,saveSettings,setFrame,setIcon,setThemeIcon");
+  assert.equal(Object.keys(calls.exposed[0][1]).sort().join(), "boot,bootOk,checkUpdate,exportBackup,importBackup,leaveSafeMode,onFrameAction,onSystemAccent,onThemesChanged,onUpdateReady,openFolder,refreshThemeLinks,resetIcon,restartToApplyIcon,restartToUpdate,saveSettings,setFrame,setIcon,setThemeIcon,updateStatus");
   assert.equal(JSON.stringify(calls.exposed[0][1].boot.plugins), '[{"id":"builtin:a","builtin":true}]'); // sem o código dos plugins
   assert.equal(calls.executed.length, 3);
   assert.match(calls.executed[0], /^\/\* runtime \*\//);
@@ -131,4 +131,25 @@ test("preload: injeta defaultIcon antes do runtime e expõe setThemeIcon", async
   assert.match(calls.executed[1], /^\/\* runtime \*\//);
   await calls.exposed[0][1].setThemeIcon("data:image/png;base64,AAA");
   assert.deepEqual(calls.invoked[0], ["trivomod:set-theme-icon", "data:image/png;base64,AAA"]);
+});
+
+test("preload: atualização usa os canais certos e guarda o aviso até a página ouvir", async () => {
+  const calls = await runPreload({ boot: bootData });
+  const api = calls.exposed[0][1];
+  await api.updateStatus();
+  await api.checkUpdate();
+  await api.restartToUpdate();
+  assert.deepEqual(calls.invoked.map((a) => a[0]), ["trivomod:update-status", "trivomod:check-update", "trivomod:restart-to-update"]);
+
+  const ready = calls.listeners.get("trivomod:update-ready");
+  ready({}, { version: 42 }); // versão que não é texto é ignorada
+  ready({}, null);
+  ready({}, { version: "0.2.0" }); // chega antes de a página registrar
+  const got = [];
+  api.onUpdateReady((v) => got.push(v));
+  assert.deepEqual(got, ["0.2.0"], "entrega o aviso guardado ao registrar");
+  ready({}, { version: "0.2.1" });
+  api.onUpdateReady(null);
+  ready({}, { version: "0.2.2" });
+  assert.deepEqual(got, ["0.2.0", "0.2.1"]);
 });
