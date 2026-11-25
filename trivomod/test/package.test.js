@@ -88,15 +88,20 @@ test("pacote de release: instalador gráfico serve a página e o logo", async (t
 });
 
 test("DIAG", () => {
-  const variants = [];
-  for (const [tn, tmp] of [["short", os.tmpdir()], ["long", fs.realpathSync.native(os.tmpdir())]])
-    for (const user of ["Usuário Teste", "Usuario Teste"]) {
-      const pkg = stagePackage(tmp, user);
-      let r;
-      try { runCli(pkg, ["paths"]); r = "OK"; } catch (e) { r = "FAIL " + String(e.message).split("\n")[1]; }
-      try { cp.execFileSync(process.execPath, ["-e", "1"], { cwd: pkg.app }); } catch { r += " cwdfail"; }
-      variants.push(`${tn} ${user}: ${r}`);
-      fs.rmSync(pkg.base, { recursive: true, force: true });
-    }
-  console.log("DIAGRESULT " + JSON.stringify(variants));
+  const pkg = stagePackage(os.tmpdir(), "Usuário Teste");
+  const script = path.join(pkg.app, "bin", "trivomod.js");
+  const out = { exists: fs.existsSync(script), list: fs.readdirSync(pkg.base), hex: Buffer.from(fs.readdirSync(pkg.base)[0]).toString("hex") };
+  const tryRun = (name, args, env = {}) => {
+    try { out[name] = cp.execFileSync(process.execPath, args, { encoding: "utf8", env: { ...process.env, ...env } }).trim(); }
+    catch (e) { out[name] = "FAIL " + String(e.stderr || e.message).slice(0, 300); }
+  };
+  tryRun("argvEcho", ["-e", "console.log(require('fs').existsSync(process.argv[1]), JSON.stringify(process.argv[1]))", script]);
+  tryRun("envReq", ["-e", "require(process.env.S); console.log('ok')", "paths"], { S: script });
+  tryRun("envExists", ["-e", "console.log(require('fs').existsSync(process.env.S))"], { S: script });
+  tryRun("main", [script, "paths"]);
+  tryRun("mainPreserve", ["--preserve-symlinks-main", script, "paths"]);
+  out.realpath = (() => { try { return fs.realpathSync(script); } catch (e) { return "FAIL " + e.message; } })();
+  out.realpathNative = (() => { try { return fs.realpathSync.native(script); } catch (e) { return "FAIL " + e.message; } })();
+  console.log("DIAGRESULT " + JSON.stringify(out));
+  fs.rmSync(pkg.base, { recursive: true, force: true });
 });
