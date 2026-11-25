@@ -117,7 +117,7 @@ test("settings: layout aceita id válido e descarta lixo", () => {
 
 test("temas e layouts incluídos: CSS válido depois de expandir `.$nome`", () => {
   const src = fs.readFileSync(path.resolve(__dirname, "..", "src", "renderer", "index.js"), "utf8");
-  const expandSrc = /const expandModules = \(css\) =>\s*([\s\S]*?\);)\n/.exec(src)[1];
+  const expandSrc = /const expandModules = \(css\) =>\s*([\s\S]*?\);)\r?\n/.exec(src)[1];
   const expand = new Function("css", `return ${expandSrc.replace(/;$/, "")}`);
   assert.equal(expand(".$shell .$channelLink:hover"), ':is([class$="_shell"],[class*="_shell "]) :is([class$="_channelLink"],[class*="_channelLink "]):hover');
   const dist = path.resolve(__dirname, "..", "src");
