@@ -1,2 +1,2 @@
 "use strict";
-module.exports = "0.1.2";
+module.exports = "0.1.3";
