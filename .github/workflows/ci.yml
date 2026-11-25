@@ -48,3 +48,34 @@ jobs:
             /r:System.Windows.Forms.dll `
             /out:test-launcher.exe `
             trivomod\installer\launcher-win.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke test da extração do launcher .exe (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path smoke\bin | Out-Null
+          Copy-Item (Get-Command node).Source smoke\node.exe
+          Set-Content -Path smoke\bin\trivomod.js -Value "process.exit(0);"
+          Compress-Archive -Path smoke\* -DestinationPath smoke.zip
+          & "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ `
+            /resource:smoke.zip,TrivoModPayload.zip `
+            /r:System.IO.Compression.FileSystem.dll `
+            /r:System.Windows.Forms.dll `
+            /out:smoke-launcher.exe `
+            trivomod\installer\launcher-win.cs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $runtime = Join-Path $env:LOCALAPPDATA "TrivoMod\installer-runtime"
+          if (Test-Path $runtime) { Remove-Item -Recurse -Force $runtime }
+
+          # Duas execuções: primeira extrai, segunda reutiliza o runtime marcado com .ready.
+          foreach ($i in 1..2) {
+            $p = Start-Process -FilePath .\smoke-launcher.exe -PassThru
+            if (-not $p.WaitForExit(60000)) {
+              $p.Kill()
+              throw "Launcher travou na execução $i (provável MessageBox de erro)."
+            }
+            $marker = Get-ChildItem -Path $runtime -Recurse -Force -Filter .ready | Select-Object -First 1
+            if (-not $marker) { throw "Marcador .ready ausente após execução $i." }
+            Write-Host "Execução ${i}: OK ($($marker.FullName))"
+          }
