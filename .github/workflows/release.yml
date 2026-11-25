@@ -190,6 +190,7 @@ jobs:
       - name: Criar ou atualizar GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.version.outputs.tag }}
           PRERELEASE: ${{ inputs.prerelease || false }}
         run: |
@@ -197,10 +198,11 @@ jobs:
           if [[ "${PRERELEASE}" == "true" ]]; then
             EXTRA_FLAGS+=(--prerelease)
           fi
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            gh release upload "${TAG}" artifacts/* --clobber
+          if gh release view "${TAG}" --repo "${GH_REPO}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" artifacts/* --repo "${GH_REPO}" --clobber
           else
             gh release create "${TAG}" artifacts/* \
+              --repo "${GH_REPO}" \
               --title "TrivoMod ${TAG}" \
               --generate-notes \
               "${EXTRA_FLAGS[@]}"
