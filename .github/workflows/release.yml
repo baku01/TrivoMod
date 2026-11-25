@@ -7,6 +7,7 @@ on:
       - master
     paths:
       - "trivomod/**"
+      - "assets/AppIcon.*"
       - ".github/workflows/release.yml"
     tags:
       - "v*.*.*"
@@ -99,38 +100,91 @@ jobs:
           echo "ref=${TAG}" >> "$GITHUB_OUTPUT"
 
   build-macos:
-    name: Compilar janela nativa (macOS Universal)
+    name: Compilar instalador macOS (.dmg Universal)
     needs: version
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.version.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
-      - name: Compilar window-mac.swift (arm64 + x86_64)
+      - name: Compilar janela nativa e launcher (arm64 + x86_64)
         run: |
           mkdir -p dist-mac/bin
           swiftc -O -target arm64-apple-macos13.0 trivomod/installer/window-mac.swift -o dist-mac/bin/window-arm64
           swiftc -O -target x86_64-apple-macos13.0 trivomod/installer/window-mac.swift -o dist-mac/bin/window-x86_64
           lipo -create dist-mac/bin/window-arm64 dist-mac/bin/window-x86_64 -output dist-mac/bin/trivomod-window-darwin
-          chmod +x dist-mac/bin/trivomod-window-darwin
-          codesign --force --sign - dist-mac/bin/trivomod-window-darwin
-          lipo -info dist-mac/bin/trivomod-window-darwin
 
-      - name: Empacotar TrivoMod para macOS
+          swiftc -O -target arm64-apple-macos13.0 trivomod/installer/launcher-mac.swift -o dist-mac/bin/launcher-arm64
+          swiftc -O -target x86_64-apple-macos13.0 trivomod/installer/launcher-mac.swift -o dist-mac/bin/launcher-x86_64
+          lipo -create dist-mac/bin/launcher-arm64 dist-mac/bin/launcher-x86_64 -output dist-mac/bin/TrivoModInstaller
+
+          chmod +x dist-mac/bin/trivomod-window-darwin dist-mac/bin/TrivoModInstaller
+          lipo -info dist-mac/bin/trivomod-window-darwin dist-mac/bin/TrivoModInstaller
+
+      - name: Montar TrivoMod Installer.app e gerar .dmg Universal
         env:
           TAG: ${{ needs.version.outputs.tag }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
-          STAGE="dist-mac/TrivoMod"
-          mkdir -p "${STAGE}/installer/bin" out
-          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md "${STAGE}/"
-          cp "trivomod/Instalar TrivoMod.command" "${STAGE}/"
-          chmod +x "${STAGE}/Instalar TrivoMod.command" "${STAGE}/bin/trivomod.js"
-          cp trivomod/installer/*.js trivomod/installer/*.swift "${STAGE}/installer/"
-          cp -R trivomod/installer/ui "${STAGE}/installer/"
-          cp dist-mac/bin/trivomod-window-darwin "${STAGE}/installer/bin/trivomod-window-darwin"
-          cp dist-mac/bin/trivomod-window-darwin "out/trivomod-window-darwin-universal"
-          (cd dist-mac && zip -ry "../out/TrivoMod-${TAG}-macos.zip" TrivoMod)
+          NODE_VER="$(node -v)"
+          APP="dist-mac/dmg-root/TrivoMod Installer.app"
+          mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources/app/installer/bin" out dist-mac/node
+
+          # Embute Node.js oficial (arm64 e x86_64) para funcionar sem Node instalado no Mac do usuário
+          curl -fsSL "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-darwin-arm64.tar.gz" -o dist-mac/node/arm64.tgz
+          curl -fsSL "https://nodejs.org/dist/${NODE_VER}/node-${NODE_VER}-darwin-x64.tar.gz" -o dist-mac/node/x64.tgz
+          tar -xzf dist-mac/node/arm64.tgz -C dist-mac/node "node-${NODE_VER}-darwin-arm64/bin/node"
+          tar -xzf dist-mac/node/x64.tgz -C dist-mac/node "node-${NODE_VER}-darwin-x64/bin/node"
+          cp "dist-mac/node/node-${NODE_VER}-darwin-arm64/bin/node" "${APP}/Contents/Resources/node-arm64"
+          cp "dist-mac/node/node-${NODE_VER}-darwin-x64/bin/node" "${APP}/Contents/Resources/node-x86_64"
+          chmod +x "${APP}/Contents/Resources/node-arm64" "${APP}/Contents/Resources/node-x86_64"
+
+          # Executável nativo + ícone da Arara Pirata + arquivos do TrivoMod
+          cp dist-mac/bin/TrivoModInstaller "${APP}/Contents/MacOS/TrivoModInstaller"
+          cp assets/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
+          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md "${APP}/Contents/Resources/app/"
+          cp trivomod/installer/*.js "${APP}/Contents/Resources/app/installer/"
+          cp -R trivomod/installer/ui "${APP}/Contents/Resources/app/installer/"
+          cp dist-mac/bin/trivomod-window-darwin "${APP}/Contents/Resources/app/installer/bin/trivomod-window-darwin"
+          chmod +x "${APP}/Contents/Resources/app/bin/trivomod.js" "${APP}/Contents/Resources/app/installer/bin/trivomod-window-darwin"
+
+          cat > "${APP}/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>TrivoMod Installer</string>
+            <key>CFBundleDisplayName</key>
+            <string>TrivoMod Installer</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.trivomod.installer</string>
+            <key>CFBundleVersion</key>
+            <string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${VERSION}</string>
+            <key>CFBundleExecutable</key>
+            <string>TrivoModInstaller</string>
+            <key>CFBundleIconFile</key>
+            <string>AppIcon</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>13.0</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
+
+          codesign --force --deep --sign - "${APP}"
+          ln -s /Applications dist-mac/dmg-root/Applications
+          hdiutil create -volname "TrivoMod ${TAG}" -srcfolder dist-mac/dmg-root -ov -format UDZO "out/TrivoMod-Installer-${TAG}-macos-universal.dmg"
+          ls -lh out/
 
       - uses: actions/upload-artifact@v4
         with:
@@ -138,44 +192,94 @@ jobs:
           path: out/*
           if-no-files-found: error
 
-  build-win-linux:
-    name: Empacotar Windows e Linux
+  build-windows:
+    name: Compilar instalador Windows (.exe standalone)
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Compilar TrivoMod-Installer.exe (sem dependência de Node.js)
+        shell: pwsh
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          New-Item -ItemType Directory -Force -Path stage-win\installer, out | Out-Null
+          Copy-Item -Recurse trivomod\bin, trivomod\src, trivomod\package.json, trivomod\README.md stage-win\
+          Copy-Item trivomod\installer\*.js stage-win\installer\
+          Copy-Item -Recurse trivomod\installer\ui stage-win\installer\
+          Copy-Item (Get-Command node).Source stage-win\node.exe
+
+          Compress-Archive -Path stage-win\* -DestinationPath payload.zip -CompressionLevel Optimal
+
+          $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $exe = "out\TrivoMod-Installer-$env:TAG-windows-x64.exe"
+          & $csc /nologo /target:winexe /optimize+ `
+            /win32icon:assets\AppIcon.ico `
+            /resource:payload.zip,TrivoModPayload.zip `
+            /r:System.IO.Compression.FileSystem.dll `
+            /r:System.Windows.Forms.dll `
+            /out:$exe `
+            trivomod\installer\launcher-win.cs
+
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Item $exe | Format-List Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: out/*
+          if-no-files-found: error
+
+  build-linux:
+    name: Empacotar instalador Linux (.tar.gz standalone)
     needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.version.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
-      - name: Empacotar TrivoMod para Windows e Linux
+      - name: Empacotar TrivoMod para Linux (com Node.js embutido)
         env:
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          mkdir -p stage-win/TrivoMod/installer stage-linux/TrivoMod/installer out
+          STAGE="stage-linux/TrivoMod"
+          mkdir -p "${STAGE}/installer" "${STAGE}/runtime" out
+          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md "${STAGE}/"
+          cp trivomod/installer/*.js "${STAGE}/installer/"
+          cp -R trivomod/installer/ui "${STAGE}/installer/"
+          cp "$(which node)" "${STAGE}/runtime/node"
+          chmod +x "${STAGE}/bin/trivomod.js" "${STAGE}/runtime/node"
 
-          # Windows
-          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md stage-win/TrivoMod/
-          cp "trivomod/Instalar TrivoMod.cmd" stage-win/TrivoMod/
-          cp trivomod/installer/*.js stage-win/TrivoMod/installer/
-          cp -R trivomod/installer/ui stage-win/TrivoMod/installer/
-          (cd stage-win && zip -rq "../out/TrivoMod-${TAG}-windows.zip" TrivoMod)
+          cat > "${STAGE}/instalar-trivomod.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          exec "${DIR}/runtime/node" "${DIR}/bin/trivomod.js" gui "$@"
+          SH
+          chmod +x "${STAGE}/instalar-trivomod.sh"
 
-          # Linux
-          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md stage-linux/TrivoMod/
-          chmod +x stage-linux/TrivoMod/bin/trivomod.js
-          cp trivomod/installer/*.js stage-linux/TrivoMod/installer/
-          cp -R trivomod/installer/ui stage-linux/TrivoMod/installer/
-          tar -C stage-linux -czf "out/TrivoMod-${TAG}-linux.tar.gz" TrivoMod
+          tar -C stage-linux -czf "out/TrivoMod-Installer-${TAG}-linux-x64.tar.gz" TrivoMod
+          ls -lh out/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: release-win-linux
+          name: release-linux
           path: out/*
           if-no-files-found: error
 
   release:
     name: Publicar GitHub Release
-    needs: [version, build-macos, build-win-linux]
+    needs: [version, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

@@ -47,13 +47,14 @@ Ao instalar o TrivoMod, o app passa a usar o ícone da **Arara Pirata**, que mud
 
 ### Baixar pronto (Recomendado)
 
-1. Baixe a versão mais recente na página de **[Releases](https://github.com/baku01/TrivoMod/releases)** para o seu sistema (**macOS**, **Windows** ou **Linux**).
-2. Feche completamente o **Trivo** (inclusive na barra de menu ou bandeja do sistema).
-3. Abra o instalador:
-   - **macOS:** dê duplo clique em `Instalar TrivoMod.command`
-   - **Windows:** dê duplo clique em `Instalar TrivoMod.cmd`
-   - **Linux:** execute `./instalar-trivomod.sh`
-4. Clique em **Instalar**. Quando o Trivo atualizar, basta abrir o instalador e clicar em **Reparar**. Para voltar ao original, clique em **Desinstalar**.
+Não precisa instalar nada antes — basta baixar o instalador do seu sistema na página de **[Releases](https://github.com/baku01/TrivoMod/releases)**:
+
+1. Feche completamente o **Trivo** (inclusive na barra de menu ou bandeja do sistema).
+2. Abra o instalador:
+   - **macOS:** abra o arquivo `.dmg` e dê duplo clique em **TrivoMod Installer**
+   - **Windows:** dê duplo clique no arquivo `.exe` (**TrivoMod-Installer-…-windows-x64.exe**)
+   - **Linux:** extraia o `.tar.gz` e execute `./instalar-trivomod.sh`
+3. Clique em **Instalar**. Quando o Trivo atualizar, basta abrir o instalador e clicar em **Reparar**. Para voltar ao original, clique em **Desinstalar**.
 
 ### Pelo código-fonte
 

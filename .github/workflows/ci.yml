@@ -25,10 +25,26 @@ jobs:
       - name: Executar testes
         working-directory: trivomod
         run: npm test
-      - name: Verificar compilação universal da janela (macOS)
+      - name: Verificar compilação universal da janela e launcher (macOS)
         if: runner.os == 'macOS'
         run: |
           swiftc -O -target arm64-apple-macos13.0 trivomod/installer/window-mac.swift -o /tmp/tm-arm64
           swiftc -O -target x86_64-apple-macos13.0 trivomod/installer/window-mac.swift -o /tmp/tm-x86_64
           lipo -create /tmp/tm-arm64 /tmp/tm-x86_64 -output /tmp/tm-universal
-          lipo -info /tmp/tm-universal
+          swiftc -O -target arm64-apple-macos13.0 trivomod/installer/launcher-mac.swift -o /tmp/tm-l-arm64
+          swiftc -O -target x86_64-apple-macos13.0 trivomod/installer/launcher-mac.swift -o /tmp/tm-l-x86_64
+          lipo -create /tmp/tm-l-arm64 /tmp/tm-l-x86_64 -output /tmp/tm-launcher
+          lipo -info /tmp/tm-universal /tmp/tm-launcher
+      - name: Verificar compilação do launcher .exe (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Set-Content -Path dummy.txt -Value "ok"
+          Compress-Archive -Path dummy.txt -DestinationPath dummy.zip
+          & "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe" /nologo /target:winexe /optimize+ `
+            /win32icon:assets\AppIcon.ico `
+            /resource:dummy.zip,TrivoModPayload.zip `
+            /r:System.IO.Compression.FileSystem.dll `
+            /r:System.Windows.Forms.dll `
+            /out:test-launcher.exe `
+            trivomod\installer\launcher-win.cs
