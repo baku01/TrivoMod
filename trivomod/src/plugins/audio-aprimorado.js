@@ -2,10 +2,14 @@
 // Resolve os principais problemas identificados na cadeia de áudio do cliente:
 //   1. Saída remota sem esmagamento (remove compressor 12:1 + ganho +9 dB + limiter 20:1);
 //   2. AudioContext em 48 kHz nativos (evita reamostragem linear sem anti-aliasing no RNNoise);
-//   3. Portão de voz com menor latência (20 ms vs 40 ms) e menos cortes em falas suaves;
+//   3. Portão de voz com detector de voz mais tolerante e a mesma antecipação do Trivo (40 ms).
+//      Medido com o worklet real: com 20 ms, só ~35% de consoantes surdas iniciais ("s", "f")
+//      passavam; com 40 ms, ~50%, e as vogais continuam passando inteiras;
 //   4. Controle automático de ganho (AGC) opcional para microfones baixos;
 //   5. Desativa DTX na publicação de voz (reduz cortes no início de frases, útil em E2EE);
-//   6. Opção de saída nativa (<audio>) sem webAudioMix para melhorar cancelamento de eco (AEC).
+//   6. Opção de saída nativa (<audio>) sem webAudioMix para melhorar cancelamento de eco (AEC);
+//   7. Proteção de CPU do RNNoise: se o supressor passar do orçamento da thread de áudio, ele
+//      entra em passagem direta até o fim da captura, em vez de picotar a voz.
 // Além disso, enquanto ativo, o processo principal desliga o backgroundThrottling da janela.
 (() => {
   const TRIVO_MAKEUP_GAIN = Math.pow(10, 9 / 20); // 2.8183829312644537 (+9 dB)
@@ -94,11 +98,11 @@
     forward(current);
   }
 
-  function buildImprovedVoiceNodes(ctx, gainNode, mode) {
+  function buildImprovedVoiceNodes(ctx, gainNode) {
     const comp = ctx.createGain();
     comp.gain.value = INV_TRIVO_GAIN; // cancela exatamente o +9 dB fixo do Trivo em qualquer volume (0..200%)
-    if (mode === "limpa") return [gainNode, comp];
-    // "suave": ganho unitário transparente + limiter suave só para evitar clipping em gritos/picos
+    // Ganho unitário transparente + limiter suave só para evitar clipping em gritos/picos
+    // (até 200% de volume por pessoa). Fala normal passa sem compressão.
     const limiter = ctx.createDynamicsCompressor();
     limiter.threshold.value = -1.5;
     limiter.knee.value = 6;
@@ -106,6 +110,58 @@
     limiter.attack.value = 0.003;
     limiter.release.value = 0.08;
     return [gainNode, comp, limiter];
+  }
+
+  // ------------------------------------------------------------ proteção de CPU do RNNoise
+  // O worklet "supressor-de-ruido" do Trivo roda o RNNoise (WASM) na própria thread de áudio e
+  // publica {tipo:"supressor-custo", mediaMs, p95Ms} a cada 200 quadros de 10 ms (~2 s). Cada
+  // quadro do modelo cabe inteiro num process() de 128 amostras (~2,67 ms a 48 kHz): passar disso
+  // com frequência estoura o prazo de renderização e a voz sai picotada. Quando o custo fica alto
+  // por relatórios seguidos, manda {tipo:"ativo", ativo:false} (passagem direta que o worklet já
+  // suporta). Não religa sozinho: a passagem direta muda a latência do caminho em ~30 ms e as filas
+  // guardam amostras antigas, então religar no meio da chamada daria um estalo. Vale até a próxima
+  // captura ou até a pessoa religar a redução avançada: nos dois casos o Trivo recria o nó, que
+  // nasce ativo e com uma guarda nova.
+  const CPU_P95_LIMITE_MS = 2;
+  const CPU_MEDIA_LIMITE_MS = 1;
+  const CPU_RELATORIOS_SEGUIDOS = 2;
+
+  function attachCpuGuard(node) {
+    const port = node && node.port;
+    if (!port || typeof port.addEventListener !== "function" || typeof port.postMessage !== "function") return;
+    let seguidos = 0;
+    const onMessage = (evento) => {
+      const msg = evento && evento.data;
+      if (!msg || msg.tipo !== "supressor-custo") return;
+      if (!active || !opt("protecaoCpu", true)) {
+        seguidos = 0;
+        return;
+      }
+      const p95 = Number(msg.p95Ms);
+      const media = Number(msg.mediaMs);
+      const caro = (Number.isFinite(p95) && p95 > CPU_P95_LIMITE_MS) || (Number.isFinite(media) && media > CPU_MEDIA_LIMITE_MS);
+      seguidos = caro ? seguidos + 1 : 0;
+      if (seguidos < CPU_RELATORIOS_SEGUIDOS) return;
+      seguidos = 0;
+      try {
+        port.postMessage({ tipo: "ativo", ativo: false });
+      } catch {
+        return; // nó já encerrado
+      }
+      node.__tmCpuFallback = { p95Ms: p95, mediaMs: media };
+      console.warn(`[TrivoMod] Redução de ruído avançada pausada: custo alto na thread de áudio (p95 ${p95.toFixed(2)} ms, média ${media.toFixed(2)} ms).`);
+      const tm = window.TrivoMod;
+      if (tm && typeof tm.toast === "function") {
+        try {
+          tm.toast("Redução de ruído avançada pausada nesta chamada: o processador não deu conta e a voz começaria a falhar.", { tipo: "info", duracao: 7000 });
+        } catch {
+          /* aviso é melhor esforço */
+        }
+      }
+    };
+    port.addEventListener("message", onMessage);
+    // addEventListener (ao contrário de onmessage) não liga a entrega sozinho.
+    if (typeof port.start === "function") port.start();
   }
 
   // ------------------------------------------------------------ hooks Web Audio
@@ -141,36 +197,30 @@
           options.processorOptions.afinacao &&
           options.processorOptions.modo !== "so-medindo"
         ) {
-          const gateMode = opt("portao", "equilibrado");
-          if (gateMode === "equilibrado" || gateMode === "classico") {
-            const base = options.processorOptions.afinacao;
-            const tuned =
-              gateMode === "classico"
-                ? {
-                    ...base,
-                    antecipacaoMs: 15,
-                    confirmacoesParaAbrir: 2,
-                    retencaoMs: 400,
-                    voicingRateHz: Number.NaN, // ativa o fallback nativo de gate por nível do worklet
-                  }
-                : {
-                    ...base,
-                    antecipacaoMs: 20,
-                    confirmacoesParaAbrir: 2,
-                    retencaoMs: 400,
-                    voicingMinCorrelation: 0.3,
-                    voicingMinWindows: 2,
-                    voicingPitchTolerance: 0.18,
-                    voicingMemoryMs: 1200,
-                  };
-            const patchedOptions = {
-              ...options,
-              processorOptions: { ...options.processorOptions, afinacao: tuned },
-            };
-            return new origAudioWorkletNode(context, name, patchedOptions);
-          }
+          // Afinação única e automática (sem preset para escolher). Medida com o worklet real do
+          // Trivo contra o padrão dele e contra um portão só por nível, com ruído de fundo largo e
+          // com zumbido tonal de 100 Hz: é a única que ganha nas consoantes iniciais sem deixar
+          // vazar mais ruído. O limiar continua automático, aprendido pelo próprio worklet.
+          const tuned = {
+            ...options.processorOptions.afinacao,
+            // Mantém os 40 ms do Trivo: a antecipação é o que devolve a consoante surda que vem
+            // antes da vogal (o detector de voz só confirma na vogal).
+            antecipacaoMs: 40,
+            confirmacoesParaAbrir: 2,
+            voicingMinCorrelation: 0.3,
+            voicingMinWindows: 2,
+            voicingPitchTolerance: 0.18,
+            voicingMemoryMs: 1200,
+          };
+          const patchedOptions = {
+            ...options,
+            processorOptions: { ...options.processorOptions, afinacao: tuned },
+          };
+          return new origAudioWorkletNode(context, name, patchedOptions);
         }
-        return options === undefined ? new origAudioWorkletNode(context, name) : new origAudioWorkletNode(context, name, options);
+        const node = options === undefined ? new origAudioWorkletNode(context, name) : new origAudioWorkletNode(context, name, options);
+        if (active && name === "supressor-de-ruido") attachCpuGuard(node);
+        return node;
       };
       PatchedAudioWorkletNode.prototype = origAudioWorkletNode.prototype;
       Object.setPrototypeOf(PatchedAudioWorkletNode, origAudioWorkletNode);
@@ -223,10 +273,9 @@
           else if (isTrivoScreenChain(nodes)) bridgeNativeVolume(this, nodes[0], false);
           return origSetWebAudioPlugins.call(this, []);
         }
-        const rxMode = opt("saida", "suave");
-        if (rxMode !== "padrao" && isTrivoVoiceChain(nodes)) {
+        if (isTrivoVoiceChain(nodes)) {
           try {
-            const improved = buildImprovedVoiceNodes(this.audioContext, nodes[1], rxMode);
+            const improved = buildImprovedVoiceNodes(this.audioContext, nodes[1]);
             return origSetWebAudioPlugins.call(this, improved);
           } catch {
             /* cai na cadeia original */
@@ -388,34 +437,17 @@
 
   TrivoMod.definePlugin({
     name: "Áudio aprimorado",
-    description: "Melhora a qualidade de voz nas chamadas: saída limpa (sem +9 dB / compressão 12:1), 48 kHz nativo, portão com menos cortes, AGC opcional e DTX desligado.",
+    description: "Melhora a qualidade de voz nas chamadas: saída limpa (sem +9 dB / compressão 12:1), 48 kHz nativo, portão que corta menos o início das falas, AGC opcional, DTX desligado e proteção de CPU da redução de ruído.",
     authors: ["TrivoMod"],
     defaultEnabled: false,
     settings: {
-      saida: {
-        type: "select",
-        label: "Processamento da saída",
-        default: "suave",
-        options: [
-          { value: "suave", label: "Suave (0 dB + limiter leve)" },
-          { value: "limpa", label: "Limpa (sem compressão)" },
-          { value: "padrao", label: "Padrão do Trivo (+9 dB / 12:1)" },
-        ],
-      },
-      portao: {
-        type: "select",
-        label: "Portão de voz (noise gate)",
-        default: "equilibrado",
-        options: [
-          { value: "equilibrado", label: "Equilibrado (20 ms, menos cortes)" },
-          { value: "classico", label: "Clássico por nível (15 ms, sem corte vocal)" },
-          { value: "padrao", label: "Padrão do Trivo (40 ms)" },
-        ],
-      },
+      // Saída e portão de voz não têm preset: a afinação é automática (ver os hooks acima).
+      // Quem quiser o comportamento original do Trivo desliga o plugin.
       sampleRate48k: { type: "boolean", label: "Forçar 48 kHz (evita reamostragem no RNNoise)", default: true },
       ganhoAutomatico: { type: "boolean", label: "Ganho automático do microfone (AGC)", default: true },
       desativarDtx: { type: "boolean", label: "Desativar DTX (menos cortes no início das falas)", default: true },
       aecNativo: { type: "boolean", label: "Saída nativa <audio> (melhora eco/AEC com caixas)", default: false },
+      protecaoCpu: { type: "boolean", label: "Pausar a redução de ruído avançada se o processador não der conta", default: true },
     },
     start() {
       pluginRef = this;
