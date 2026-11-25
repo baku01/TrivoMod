@@ -10,17 +10,21 @@ const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 
+const { copyDir } = require("../installer/patch");
+
 const ROOT = path.resolve(__dirname, "..");
 
-function stagePackage(tmp = os.tmpdir(), user = "Usuário Teste") {
-  const base = fs.mkdtempSync(path.join(tmp, "trivomod pacote-"));
-  const app = path.join(base, user, "TrivoMod");
+function stagePackage() {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "trivomod pacote-"));
+  const app = path.join(base, "Usuário João", "TrivoMod");
   fs.mkdirSync(path.join(app, "installer"), { recursive: true });
-  for (const item of ["bin", "src", "package.json", "README.md"]) fs.cpSync(path.join(ROOT, item), path.join(app, item), { recursive: true });
+  copyDir(path.join(ROOT, "bin"), path.join(app, "bin"));
+  copyDir(path.join(ROOT, "src"), path.join(app, "src"));
+  for (const f of ["package.json", "README.md"]) fs.copyFileSync(path.join(ROOT, f), path.join(app, f));
   for (const f of fs.readdirSync(path.join(ROOT, "installer"))) {
     if (f.endsWith(".js")) fs.copyFileSync(path.join(ROOT, "installer", f), path.join(app, "installer", f));
   }
-  fs.cpSync(path.join(ROOT, "installer", "ui"), path.join(app, "installer", "ui"), { recursive: true });
+  copyDir(path.join(ROOT, "installer", "ui"), path.join(app, "installer", "ui"));
   return { base, app, data: path.join(base, "Dados ç", "TrivoMod") };
 }
 
@@ -50,6 +54,8 @@ test("pacote de release: CLI roda fora do repositório, em caminho com espaço e
   assert.ok(fs.existsSync(path.join(pkg.data, "dist", "main", "index.js")));
   assert.ok(fs.existsSync(path.join(pkg.data, "themes")));
   assert.ok(fs.existsSync(path.join(pkg.data, "plugins")));
+  // Nada pode ter sido gravado com o nome corrompido (ex.: "Dados Ã§").
+  assert.deepEqual(fs.readdirSync(pkg.base).sort(), ["Dados ç", "Usuário João"].sort());
 });
 
 test("pacote de release: instalador gráfico serve a página e o logo", async (t) => {
@@ -85,23 +91,4 @@ test("pacote de release: instalador gráfico serve a página e o logo", async (t
 
   assert.equal(await get(url), 200);
   assert.equal(await get(`${url}trivo-logo.webp`), 200);
-});
-
-test("DIAG", () => {
-  const pkg = stagePackage(os.tmpdir(), "Usuário Teste");
-  const script = path.join(pkg.app, "bin", "trivomod.js");
-  const out = { exists: fs.existsSync(script), list: fs.readdirSync(pkg.base), hex: Buffer.from(fs.readdirSync(pkg.base)[0]).toString("hex") };
-  const tryRun = (name, args, env = {}) => {
-    try { out[name] = cp.execFileSync(process.execPath, args, { encoding: "utf8", env: { ...process.env, ...env } }).trim(); }
-    catch (e) { out[name] = "FAIL " + String(e.stderr || e.message).slice(0, 300); }
-  };
-  tryRun("argvEcho", ["-e", "console.log(require('fs').existsSync(process.argv[1]), JSON.stringify(process.argv[1]))", script]);
-  tryRun("envReq", ["-e", "require(process.env.S); console.log('ok')", "paths"], { S: script });
-  tryRun("envExists", ["-e", "console.log(require('fs').existsSync(process.env.S))"], { S: script });
-  tryRun("main", [script, "paths"]);
-  tryRun("mainPreserve", ["--preserve-symlinks-main", script, "paths"]);
-  out.realpath = (() => { try { return fs.realpathSync(script); } catch (e) { return "FAIL " + e.message; } })();
-  out.realpathNative = (() => { try { return fs.realpathSync.native(script); } catch (e) { return "FAIL " + e.message; } })();
-  console.log("DIAGRESULT " + JSON.stringify(out));
-  fs.rmSync(pkg.base, { recursive: true, force: true });
 });
