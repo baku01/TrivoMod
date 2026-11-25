@@ -1019,7 +1019,7 @@
           h("div", { class: "grow" },
             h("div", { class: "name" }, "Áudio aprimorado", h("span", { class: "tag" }, enabled ? "Aprimorado" : "Padrão")),
             h("div", { class: "desc" }, enabled
-              ? "Modo aprimorado ativo: saída limpa (sem +9 dB / compressão 12:1), 48 kHz nativo, portão com menos cortes, AGC opcional, DTX desligado e sem throttling em segundo plano."
+              ? "Modo aprimorado ativo: saída limpa (sem +9 dB / compressão 12:1), 48 kHz nativo, portão que corta menos o início das falas, AGC opcional, DTX desligado, proteção de CPU da redução de ruído e sem throttling em segundo plano."
               : "Usando o modo padrão do Trivo. Ligue para ativar o áudio aprimorado nas chamadas de voz."),
             audio.error && h("div", { class: "error" }, `Erro: ${audio.error}`),
           ),

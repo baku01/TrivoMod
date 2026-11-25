@@ -49,6 +49,25 @@ function loadAudioPlugin(overrides = {}) {
     this.ctx = ctx;
     this.name = name;
     this.opts = opts;
+    if (overrides.withPort) {
+      const listeners = [];
+      this.port = {
+        sent: [],
+        started: 0,
+        addEventListener(type, fn) {
+          if (type === "message") listeners.push(fn);
+        },
+        start() {
+          this.started += 1;
+        },
+        postMessage(msg) {
+          this.sent.push(msg);
+        },
+        emit(data) {
+          for (const fn of listeners) fn({ data });
+        },
+      };
+    }
   }
 
   const sandbox = {
@@ -253,25 +272,31 @@ test("audio-aprimorado: afina portao-de-voz sem mutar a constante original nem t
     voicingMemoryMs: 600,
   };
 
-  // Modo equilibrado (padrão)
+  // Afinação automática (única)
   new env.win.AudioWorkletNode({}, "portao-de-voz", {
     processorOptions: { afinacao: origTuning, manualDb: null, modo: "cortando" },
   });
   assert.equal(origTuning.antecipacaoMs, 40, "não deve mutar o objeto original do Trivo");
   const eq = env.workletCalls[0].opts.processorOptions.afinacao;
-  assert.equal(eq.antecipacaoMs, 20);
+  assert.equal(eq.antecipacaoMs, 40, "antecipação do Trivo: com 20 ms consoantes surdas iniciais eram cortadas");
   assert.equal(eq.confirmacoesParaAbrir, 2);
   assert.equal(eq.voicingMinCorrelation, 0.3);
+  assert.equal(eq.voicingMinWindows, 2);
+  assert.equal(eq.voicingPitchTolerance, 0.18);
   assert.equal(eq.voicingMemoryMs, 1200);
+  assert.equal(eq.retencaoMs, 300, "retenção fica a do Trivo (400 ms não mostrou ganho medido)");
+  assert.equal(eq.voicingRateHz, 8000);
 
-  // Modo clássico (sem VoicingDetector)
+  // Preset salvo por versões antigas ("classico"/"padrao") é ignorado: a afinação é automática
+  assert.equal(env.def.settings.portao, undefined, "não há mais preset de portão para escolher");
   env.setOption("portao", "classico");
   new env.win.AudioWorkletNode({}, "portao-de-voz", {
     processorOptions: { afinacao: origTuning, manualDb: null, modo: "cortando" },
   });
-  const cl = env.workletCalls[1].opts.processorOptions.afinacao;
-  assert.equal(cl.antecipacaoMs, 15);
-  assert.ok(Number.isNaN(cl.voicingRateHz));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(env.workletCalls[1].opts.processorOptions.afinacao)),
+    JSON.parse(JSON.stringify(eq)),
+  );
 
   // Medidores remotos ("so-medindo") não são alterados
   new env.win.AudioWorkletNode({}, "portao-de-voz", {
@@ -309,28 +334,29 @@ test("audio-aprimorado: substitui cadeia +9 dB / 12:1 / 20:1 na recepção e pre
   assert.equal(applied1[0], nodes1[1]);
   assert.ok(Math.abs(applied1[0].gain.value * applied1[1].gain.value - 1) < 1e-6, "ganho líquido unitário (0 dB)");
   assert.equal(applied1[2].threshold.value, -1.5);
+  assert.equal(applied1[2].knee.value, 6);
   assert.equal(applied1[2].ratio.value, 6);
+  assert.equal(applied1[2].attack.value, 0.003);
+  assert.equal(applied1[2].release.value, 0.08);
 
-  // Modo limpa (sem compressão)
-  env.setOption("saida", "limpa");
-  const nodes2 = trivoVoiceNodes();
-  track.setWebAudioPlugins(nodes2);
-  const applied2 = calls.setPlugins.at(-1);
-  assert.equal(applied2.length, 2);
-  assert.ok(Math.abs(applied2[0].gain.value * applied2[1].gain.value - 1) < 1e-6);
+  // Preset de saída salvo por versões antigas ("limpa"/"padrao") é ignorado
+  assert.equal(env.def.settings.saida, undefined, "não há mais preset de saída para escolher");
+  for (const antigo of ["limpa", "padrao"]) {
+    env.setOption("saida", antigo);
+    track.setWebAudioPlugins(trivoVoiceNodes());
+    assert.equal(calls.setPlugins.at(-1).length, 3, `saida=${antigo} salvo não muda a cadeia`);
+  }
 
   // Tela compartilhada (2 nós) fica intacta
   const screenNodes = [fakeCtx.createGain(), fakeCtx.createDynamicsCompressor()];
   track.setWebAudioPlugins(screenNodes);
   assert.deepEqual(calls.setPlugins.at(-1), screenNodes);
 
-  // Modo padrão dentro do plugin ou plugin parado devolve a cadeia original
-  env.setOption("saida", "padrao");
+  // Plugin parado devolve a cadeia original do Trivo
+  env.def.stop();
   const nodes3 = trivoVoiceNodes();
   track.setWebAudioPlugins(nodes3);
   assert.deepEqual(calls.setPlugins.at(-1), nodes3);
-
-  env.def.stop();
 });
 
 test("audio-aprimorado: desativa DTX, ativa AGC com re-wrap do web-rnnoise e suporta saída nativa AEC", () => {
@@ -617,7 +643,7 @@ test("audio-aprimorado: alternar ganhoAutomatico desembrulha e reembrulha o proc
   assert.equal(capMod.U().restricoesDeCaptura({ ...prefs, ganhoAutomatico: true }).autoGainControl, true);
 });
 
-test("audio-aprimorado: portão padrão, outros worklets e AudioContext sem argumentos", () => {
+test("audio-aprimorado: portão sem afinação, outros worklets e AudioContext sem argumentos", () => {
   const env = loadAudioPlugin();
   env.def.start();
 
@@ -626,14 +652,108 @@ test("audio-aprimorado: portão padrão, outros worklets e AudioContext sem argu
   assert.equal(env.workletCalls.at(-1).opts, options);
   new env.win.AudioWorkletNode({}, "portao-de-voz");
   assert.equal(env.workletCalls.at(-1).opts, undefined);
-  env.setOption("portao", "padrao");
-  new env.win.AudioWorkletNode({}, "portao-de-voz", options);
-  assert.equal(env.workletCalls.at(-1).opts, options);
+  const semAfinacao = { processorOptions: { manualDb: null, modo: "cortando" } };
+  new env.win.AudioWorkletNode({}, "portao-de-voz", semAfinacao);
+  assert.equal(env.workletCalls.at(-1).opts, semAfinacao, "sem afinação do Trivo não há o que ajustar");
 
   const ac = new env.win.AudioContext();
   assert.equal(ac.opts.sampleRate, 48000);
   assert.ok(ac instanceof env.BaseAudioContext);
   new env.win.AudioContext({ sampleRate: null });
   assert.equal(env.audioCtxCalls.at(-1).sampleRate, 48000, "sampleRate nulo é tratado como ausente");
+  env.def.stop();
+});
+
+// Os objetos nascem no realm do vm; copia via JSON para comparar só a estrutura.
+const enviados = (node) => JSON.parse(JSON.stringify(node.port.sent));
+
+function custo(p95Ms, mediaMs = 0.2) {
+  return { tipo: "supressor-custo", quadros: 200, mediaMs, p95Ms };
+}
+
+test("audio-aprimorado: proteção de CPU pausa o RNNoise só depois de relatórios caros seguidos", () => {
+  const env = loadAudioPlugin({ withPort: true });
+  const toasts = [];
+  env.win.TrivoMod.toast = (text, opts) => toasts.push({ text, opts });
+  env.def.start();
+
+  const node = new env.win.AudioWorkletNode({}, "supressor-de-ruido", { processorOptions: { ativo: true, mistura: 0.85 } });
+  assert.equal(node.port.started, 1, "addEventListener precisa de start() para receber mensagens");
+
+  // Mensagens que não são de custo e relatórios baratos não fazem nada
+  node.port.emit({ tipo: "supressor-pronto", taxa: 48000 });
+  node.port.emit(custo(0.4));
+  // Um pico isolado não basta: o seguinte barato zera a contagem
+  node.port.emit(custo(3.5));
+  node.port.emit(custo(0.4));
+  node.port.emit(custo(3.5));
+  assert.deepEqual(enviados(node), []);
+  assert.equal(toasts.length, 0);
+
+  // Segundo relatório caro seguido: passagem direta
+  node.port.emit(custo(3.5));
+  assert.deepEqual(enviados(node), [{ tipo: "ativo", ativo: false }]);
+  assert.equal(node.__tmCpuFallback.p95Ms, 3.5);
+  assert.equal(toasts.length, 1);
+  assert.equal(toasts[0].opts.tipo, "info");
+
+  // Média alta também conta, mesmo com p95 dentro do limite
+  const node2 = new env.win.AudioWorkletNode({}, "supressor-de-ruido", {});
+  node2.port.emit(custo(1.5, 1.2));
+  node2.port.emit(custo(1.5, 1.2));
+  assert.deepEqual(enviados(node2), [{ tipo: "ativo", ativo: false }]);
+
+  // Valores de limite exatos não disparam
+  const node3 = new env.win.AudioWorkletNode({}, "supressor-de-ruido", {});
+  node3.port.emit(custo(2, 1));
+  node3.port.emit(custo(2, 1));
+  node3.port.emit({ tipo: "supressor-custo", p95Ms: Number.NaN, mediaMs: undefined });
+  assert.deepEqual(enviados(node3), []);
+
+  env.def.stop();
+});
+
+test("audio-aprimorado: proteção de CPU respeita a opção, o stop e só vale para o supressor", () => {
+  const env = loadAudioPlugin({ withPort: true });
+
+  // Nó criado com o plugin desligado não ganha guarda
+  const antes = new env.win.AudioWorkletNode({}, "supressor-de-ruido", {});
+  assert.equal(antes.port.started, 0);
+
+  env.def.start();
+  env.setOption("protecaoCpu", false);
+  const node = new env.win.AudioWorkletNode({}, "supressor-de-ruido", {});
+  node.port.emit(custo(5));
+  node.port.emit(custo(5));
+  assert.deepEqual(enviados(node), [], "opção desligada não pausa");
+
+  // Religar a opção vale para o mesmo nó, contando do zero
+  env.setOption("protecaoCpu", true);
+  node.port.emit(custo(5));
+  assert.deepEqual(enviados(node), []);
+  node.port.emit(custo(5));
+  assert.deepEqual(enviados(node), [{ tipo: "ativo", ativo: false }]);
+
+  // Outros worklets não ganham guarda
+  const portao = new env.win.AudioWorkletNode({}, "portao-de-voz", {});
+  assert.equal(portao.port.started, 0);
+
+  // Depois do stop, relatórios caros são ignorados
+  const vivo = new env.win.AudioWorkletNode({}, "supressor-de-ruido", {});
+  env.def.stop();
+  vivo.port.emit(custo(5));
+  vivo.port.emit(custo(5));
+  assert.deepEqual(enviados(vivo), []);
+
+  // Sem toast disponível e com postMessage quebrado, não lança
+  env.def.start();
+  delete env.win.TrivoMod.toast;
+  const quebrado = new env.win.AudioWorkletNode({}, "supressor-de-ruido", {});
+  quebrado.port.postMessage = () => {
+    throw new Error("porta fechada");
+  };
+  quebrado.port.emit(custo(5));
+  assert.doesNotThrow(() => quebrado.port.emit(custo(5)));
+  assert.equal(quebrado.__tmCpuFallback, undefined);
   env.def.stop();
 });
