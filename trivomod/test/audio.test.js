@@ -408,3 +408,232 @@ test("aba TrivoMod: renderAbout inclui o switch de modo padrão / áudio aprimor
   assert.match(rendererSrc, /enabled \? "Aprimorado" : "Padrão"/);
   assert.match(rendererSrc, /\.\.\.renderAudioSection\(\)/);
 });
+
+function trivoVoiceNodes(fakeCtx, { c1Threshold = -24, c1Ratio = 12, c2Threshold = -6, c2Ratio = 20 } = {}) {
+  const c1 = fakeCtx.createDynamicsCompressor();
+  c1.threshold.value = c1Threshold;
+  c1.ratio.value = c1Ratio;
+  const g = fakeCtx.createGain();
+  g.gain.value = Math.pow(10, 9 / 20);
+  const c2 = fakeCtx.createDynamicsCompressor();
+  c2.threshold.value = c2Threshold;
+  c2.ratio.value = c2Ratio;
+  return [c1, g, c2];
+}
+
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("audio-aprimorado: stop devolve os protótipos do LiveKit e o processador de captura originais", () => {
+  const env = loadAudioPlugin();
+  const { capMod, FakeRemoteAudioTrack, FakeLocalParticipant, FakeRoom, calls } = registerSyntheticTrivoModules(env.ctx);
+  const origSet = FakeRemoteAudioTrack.prototype.setWebAudioPlugins;
+  const origPublish = FakeLocalParticipant.prototype.publishTrack;
+  const origConnect = FakeRoom.prototype.connect;
+  const origProc = capMod.U();
+
+  env.def.start();
+  assert.notEqual(FakeRemoteAudioTrack.prototype.setWebAudioPlugins, origSet);
+  assert.notEqual(FakeLocalParticipant.prototype.publishTrack, origPublish);
+  assert.notEqual(FakeRoom.prototype.connect, origConnect);
+  assert.notEqual(capMod.U(), origProc);
+
+  env.def.stop();
+  assert.equal(FakeRemoteAudioTrack.prototype.setWebAudioPlugins, origSet);
+  assert.equal(FakeLocalParticipant.prototype.publishTrack, origPublish);
+  assert.equal(FakeRoom.prototype.connect, origConnect);
+  assert.equal(capMod.U(), origProc);
+
+  // Parado, nada é alterado
+  const fakeCtx = makeFakeContext();
+  const nodes = trivoVoiceNodes(fakeCtx);
+  new FakeRemoteAudioTrack(fakeCtx).setWebAudioPlugins(nodes);
+  assert.equal(calls.setPlugins.at(-1), nodes);
+  new FakeLocalParticipant().publishTrack({ kind: "audio" }, { source: "microphone", dtx: true });
+  assert.equal(calls.publish.at(-1).options.dtx, true);
+  const room = new FakeRoom({ webAudioMix: true, publishDefaults: { dtx: true } });
+  room.connect("wss://lk.example", "tok");
+  assert.equal(room.options.publishDefaults.dtx, true);
+  assert.equal(room.options.webAudioMix, true);
+});
+
+test("audio-aprimorado: religar depois de parar instala os hooks de novo", () => {
+  const env = loadAudioPlugin();
+  const { FakeRemoteAudioTrack, calls } = registerSyntheticTrivoModules(env.ctx);
+  env.def.start();
+  env.def.stop();
+  env.def.start();
+
+  const fakeCtx = makeFakeContext();
+  new FakeRemoteAudioTrack(fakeCtx).setWebAudioPlugins(trivoVoiceNodes(fakeCtx));
+  assert.equal(calls.setPlugins.at(-1).length, 3);
+  assert.equal(calls.setPlugins.at(-1)[2].threshold.value, -1.5, "cadeia suave aplicada de novo");
+  assert.notEqual(env.win.AudioContext, env.BaseAudioContext);
+  env.def.stop();
+});
+
+test("audio-aprimorado: módulos carregados depois do start são interceptados", async () => {
+  const env = loadAudioPlugin();
+  env.def.start();
+  const { capMod, FakeRemoteAudioTrack, FakeLocalParticipant, calls } = registerSyntheticTrivoModules(env.ctx);
+  await tick();
+
+  const fakeCtx = makeFakeContext();
+  new FakeRemoteAudioTrack(fakeCtx).setWebAudioPlugins(trivoVoiceNodes(fakeCtx));
+  assert.equal(calls.setPlugins.at(-1).length, 3);
+  new FakeLocalParticipant().publishTrack({ kind: "audio" }, { source: "microphone", dtx: true });
+  assert.equal(calls.publish.at(-1).options.dtx, false);
+  const c = capMod.U().restricoesDeCaptura({ cancelamentoDeEco: true, modo: "navegador", ganhoAutomatico: false });
+  assert.equal(c.autoGainControl, true);
+  env.def.stop();
+});
+
+test("audio-aprimorado: módulos que chegam depois do stop não são alterados", async () => {
+  const env = loadAudioPlugin();
+  env.def.start();
+  env.def.stop();
+  const { capMod, FakeRemoteAudioTrack, FakeLocalParticipant } = registerSyntheticTrivoModules(env.ctx);
+  const origSet = FakeRemoteAudioTrack.prototype.setWebAudioPlugins;
+  const origPublish = FakeLocalParticipant.prototype.publishTrack;
+  const origProc = capMod.U();
+  await tick();
+
+  assert.equal(FakeRemoteAudioTrack.prototype.setWebAudioPlugins, origSet);
+  assert.equal(FakeLocalParticipant.prototype.publishTrack, origPublish);
+  assert.equal(capMod.U(), origProc);
+});
+
+test("audio-aprimorado: cadeia de voz com parâmetros diferentes passa intacta", () => {
+  const env = loadAudioPlugin();
+  const { FakeRemoteAudioTrack, calls } = registerSyntheticTrivoModules(env.ctx);
+  env.def.start();
+  const fakeCtx = makeFakeContext();
+  const track = new FakeRemoteAudioTrack(fakeCtx);
+
+  for (const variant of [{ c1Threshold: -30 }, { c1Ratio: 4 }, { c2Threshold: -12 }, { c2Ratio: 10 }]) {
+    const nodes = trivoVoiceNodes(fakeCtx, variant);
+    track.setWebAudioPlugins(nodes);
+    assert.equal(calls.setPlugins.at(-1), nodes, JSON.stringify(variant));
+  }
+  // Quantidade de nós diferente de 2 ou 3 também passa intacta
+  const one = [fakeCtx.createGain()];
+  track.setWebAudioPlugins(one);
+  assert.equal(calls.setPlugins.at(-1), one);
+  env.def.stop();
+});
+
+test("audio-aprimorado: saída nativa encaminha volume com limites e sem dividir na tela compartilhada", () => {
+  const env = loadAudioPlugin();
+  const { FakeRemoteAudioTrack, calls } = registerSyntheticTrivoModules(env.ctx);
+  env.def.start();
+  const fakeCtx = makeFakeContext();
+  const makeup = Math.pow(10, 9 / 20);
+
+  // Voz: remove a cadeia (lista vazia) e divide pelo +9 dB
+  const voiceTrack = new FakeRemoteAudioTrack(undefined);
+  const voice = trivoVoiceNodes(fakeCtx);
+  voiceTrack.setWebAudioPlugins(voice);
+  assert.equal(calls.setPlugins.at(-1).length, 0);
+  assert.equal(calls.setVolume.at(-1), 1);
+
+  voice[1].gain.value = makeup * 2; // volume 200% no Trivo
+  assert.equal(calls.setVolume.at(-1), 1, "limita em 1");
+  voice[1].gain.value = -1;
+  assert.equal(calls.setVolume.at(-1), 0, "limita em 0");
+  voice[1].gain.value = Number.NaN;
+  assert.equal(calls.setVolume.at(-1), 1, "valor inválido volta a 1");
+  voice[1].gain.setTargetAtTime(makeup * 0.25, 0, 0.01);
+  assert.ok(Math.abs(calls.setVolume.at(-1) - 0.25) < 1e-6, "setTargetAtTime também encaminha");
+  assert.ok(Math.abs(voice[1].gain.value - makeup * 0.25) < 1e-6, "setTargetAtTime original continua sendo chamado");
+
+  // Reaplicar o mesmo nó não cria uma segunda ponte
+  const before = calls.setVolume.length;
+  voiceTrack.setWebAudioPlugins(voice);
+  voice[1].gain.value = makeup * 0.5;
+  assert.equal(calls.setVolume.length, before + 1);
+
+  // Tela compartilhada: ganho vai direto, sem dividir pelo +9 dB
+  const screenTrack = new FakeRemoteAudioTrack(undefined);
+  const screenGain = fakeCtx.createGain();
+  screenGain.gain.value = 0.6;
+  screenTrack.setWebAudioPlugins([screenGain, fakeCtx.createDynamicsCompressor()]);
+  assert.equal(calls.setPlugins.at(-1).length, 0);
+  assert.ok(Math.abs(calls.setVolume.at(-1) - 0.6) < 1e-6);
+  env.def.stop();
+});
+
+test("audio-aprimorado: DTX só muda em microfone e respeita a opção desligada", () => {
+  const env = loadAudioPlugin();
+  const { FakeLocalParticipant, FakeRoom, calls } = registerSyntheticTrivoModules(env.ctx);
+  env.def.start();
+  const lp = new FakeLocalParticipant();
+
+  lp.publishTrack({ kind: "audio" });
+  assert.equal(calls.publish.at(-1).options.dtx, false, "sem options cria { dtx: false }");
+  lp.publishTrack({ mediaStreamTrack: { kind: "audio" } }, { source: "microphone" });
+  assert.equal(calls.publish.at(-1).options.dtx, false, "detecta áudio pelo mediaStreamTrack");
+  const videoOpts = { source: "camera", dtx: true };
+  lp.publishTrack({ kind: "video" }, videoOpts);
+  assert.equal(calls.publish.at(-1).options, videoOpts);
+  const screenOpts = { source: 4, dtx: true };
+  lp.publishTrack({ kind: "audio" }, screenOpts);
+  assert.equal(calls.publish.at(-1).options, screenOpts, "source numérico 4 = áudio da tela");
+
+  // aecNativo desligado (padrão) mantém webAudioMix; sem publishDefaults nada é criado
+  const mix = { audioContext: {} };
+  const room = new FakeRoom({ webAudioMix: mix });
+  room.connect("wss://lk.example", "tok");
+  assert.equal(room.options.webAudioMix, mix);
+  assert.equal(room.options.publishDefaults, undefined);
+
+  env.setOption("desativarDtx", false);
+  const micOpts = { source: "microphone", dtx: true };
+  lp.publishTrack({ kind: "audio" }, micOpts);
+  assert.equal(calls.publish.at(-1).options, micOpts);
+  const room2 = new FakeRoom({ publishDefaults: { dtx: true } });
+  room2.connect("wss://lk.example", "tok");
+  assert.equal(room2.options.publishDefaults.dtx, true);
+  env.def.stop();
+});
+
+test("audio-aprimorado: alternar ganhoAutomatico desembrulha e reembrulha o processador", () => {
+  const env = loadAudioPlugin();
+  const { capMod } = registerSyntheticTrivoModules(env.ctx);
+  const origProc = capMod.U();
+  const prefs = { cancelamentoDeEco: true, modo: "navegador", ganhoAutomatico: false };
+  env.def.start();
+  assert.equal(capMod.U().restricoesDeCaptura(prefs).autoGainControl, true);
+
+  env.setOption("ganhoAutomatico", false);
+  assert.equal(capMod.U(), origProc);
+  assert.equal(capMod.U().restricoesDeCaptura(prefs).autoGainControl, false);
+
+  env.setOption("ganhoAutomatico", true);
+  assert.notEqual(capMod.U(), origProc);
+  assert.equal(capMod.U().nome, "web", "wrapper herda as demais propriedades");
+  assert.equal(capMod.U().restricoesDeCaptura(prefs).autoGainControl, true);
+
+  // Preferência do usuário já ligada continua ligada mesmo sem o wrapper
+  env.def.stop();
+  assert.equal(capMod.U().restricoesDeCaptura({ ...prefs, ganhoAutomatico: true }).autoGainControl, true);
+});
+
+test("audio-aprimorado: portão padrão, outros worklets e AudioContext sem argumentos", () => {
+  const env = loadAudioPlugin();
+  env.def.start();
+
+  const options = { processorOptions: { afinacao: { antecipacaoMs: 40 }, modo: "cortando" } };
+  new env.win.AudioWorkletNode({}, "outro-processador", options);
+  assert.equal(env.workletCalls.at(-1).opts, options);
+  new env.win.AudioWorkletNode({}, "portao-de-voz");
+  assert.equal(env.workletCalls.at(-1).opts, undefined);
+  env.setOption("portao", "padrao");
+  new env.win.AudioWorkletNode({}, "portao-de-voz", options);
+  assert.equal(env.workletCalls.at(-1).opts, options);
+
+  const ac = new env.win.AudioContext();
+  assert.equal(ac.opts.sampleRate, 48000);
+  assert.ok(ac instanceof env.BaseAudioContext);
+  new env.win.AudioContext({ sampleRate: null });
+  assert.equal(env.audioCtxCalls.at(-1).sampleRate, 48000, "sampleRate nulo é tratado como ausente");
+  env.def.stop();
+});
