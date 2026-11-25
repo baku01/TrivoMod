@@ -1,0 +1,207 @@
+name: Build, Version & Release (TrivoMod)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "trivomod/**"
+      - ".github/workflows/release.yml"
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Tipo de incremento de versão (auto usa Conventional Commits)"
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      prerelease:
+        description: "Marcar como pré-lançamento (prerelease)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trivomod-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Testes (${{ matrix.os }})
+    if: >-
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[skip release]') &&
+      github.actor != 'github-actions[bot]'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Executar suíte de testes
+        working-directory: trivomod
+        run: npm test
+
+  version:
+    name: Versionar e criar tag
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      ref: ${{ steps.ver.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Resolver ou incrementar versão
+        id: ver
+        env:
+          BUMP_MODE: ${{ inputs.bump || 'auto' }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "ref=${TAG}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NEW_VERSION="$(node trivomod/tools/bump-version.js "${BUMP_MODE}")"
+          TAG="v${NEW_VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add trivomod/package.json trivomod/src/version.js
+          git commit -m "chore(release): ${TAG} [skip ci]"
+          git tag -a "${TAG}" -m "TrivoMod ${TAG}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "${TAG}"
+
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "ref=${TAG}" >> "$GITHUB_OUTPUT"
+
+  build-macos:
+    name: Compilar janela nativa (macOS Universal)
+    needs: version
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+
+      - name: Compilar window-mac.swift (arm64 + x86_64)
+        run: |
+          mkdir -p dist-mac/bin
+          swiftc -O -target arm64-apple-macos13.0 trivomod/installer/window-mac.swift -o dist-mac/bin/window-arm64
+          swiftc -O -target x86_64-apple-macos13.0 trivomod/installer/window-mac.swift -o dist-mac/bin/window-x86_64
+          lipo -create dist-mac/bin/window-arm64 dist-mac/bin/window-x86_64 -output dist-mac/bin/trivomod-window-darwin
+          chmod +x dist-mac/bin/trivomod-window-darwin
+          codesign --force --sign - dist-mac/bin/trivomod-window-darwin
+          lipo -info dist-mac/bin/trivomod-window-darwin
+
+      - name: Empacotar TrivoMod para macOS
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          STAGE="dist-mac/TrivoMod"
+          mkdir -p "${STAGE}/installer/bin" out
+          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md "${STAGE}/"
+          cp "trivomod/Instalar TrivoMod.command" "${STAGE}/"
+          chmod +x "${STAGE}/Instalar TrivoMod.command" "${STAGE}/bin/trivomod.js"
+          cp trivomod/installer/*.js trivomod/installer/*.swift "${STAGE}/installer/"
+          cp -R trivomod/installer/ui "${STAGE}/installer/"
+          cp dist-mac/bin/trivomod-window-darwin "${STAGE}/installer/bin/trivomod-window-darwin"
+          cp dist-mac/bin/trivomod-window-darwin "out/trivomod-window-darwin-universal"
+          (cd dist-mac && zip -ry "../out/TrivoMod-${TAG}-macos.zip" TrivoMod)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: out/*
+          if-no-files-found: error
+
+  build-win-linux:
+    name: Empacotar Windows e Linux
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+
+      - name: Empacotar TrivoMod para Windows e Linux
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          mkdir -p stage-win/TrivoMod/installer stage-linux/TrivoMod/installer out
+
+          # Windows
+          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md stage-win/TrivoMod/
+          cp "trivomod/Instalar TrivoMod.cmd" stage-win/TrivoMod/
+          cp trivomod/installer/*.js stage-win/TrivoMod/installer/
+          cp -R trivomod/installer/ui stage-win/TrivoMod/installer/
+          (cd stage-win && zip -rq "../out/TrivoMod-${TAG}-windows.zip" TrivoMod)
+
+          # Linux
+          cp -R trivomod/bin trivomod/src trivomod/package.json trivomod/README.md stage-linux/TrivoMod/
+          chmod +x stage-linux/TrivoMod/bin/trivomod.js
+          cp trivomod/installer/*.js stage-linux/TrivoMod/installer/
+          cp -R trivomod/installer/ui stage-linux/TrivoMod/installer/
+          tar -C stage-linux -czf "out/TrivoMod-${TAG}-linux.tar.gz" TrivoMod
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-win-linux
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publicar GitHub Release
+    needs: [version, build-macos, build-win-linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Gerar SHA256SUMS.txt
+        working-directory: artifacts
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Criar ou atualizar GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+          PRERELEASE: ${{ inputs.prerelease || false }}
+        run: |
+          EXTRA_FLAGS=()
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            EXTRA_FLAGS+=(--prerelease)
+          fi
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" artifacts/* --clobber
+          else
+            gh release create "${TAG}" artifacts/* \
+              --title "TrivoMod ${TAG}" \
+              --generate-notes \
+              "${EXTRA_FLAGS[@]}"
+          fi

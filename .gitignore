@@ -1,0 +1,51 @@
+# Arquivos sensíveis, credenciais e segredos
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.secret
+*credentials*
+*cookies*
+cookies.*
+tokens.*
+autenticacao.bin
+instalacao.json
+
+# Downloads brutos, código decompilado local, instaladores binários e cópias de teste
+.dl/
+decompiled/
+*.app/
+*.exe
+*.dmg
+*.pkg
+*.msi
+*.zip
+*.asar
+*.asar.original
+
+# Dados de perfil, caches, logs e temporários do TrivoMod / Electron
+settings.json
+state.json
+audio.json
+tema.json
+aviso-de-fechar.json
+*.log
+logs/
+cache/
+dev/
+trivomod/installer/bin/
+trivomod-window-*
+*.tmp
+*.bak
+
+# Dependências e arquivos do sistema operacional
+node_modules/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~

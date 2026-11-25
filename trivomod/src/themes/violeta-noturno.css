@@ -1,0 +1,19 @@
+/**
+ * @name Violeta noturno
+ * @author TrivoMod
+ * @description Roxo profundo no lugar do verde-grafite do tema escuro. Só vale quando o tema do Trivo é Escuro.
+ */
+html:root[data-tema="escuro"] {
+  --background: #0d0a14;
+  --surface-sidebar: #120e1c;
+  --surface-raised: #181226;
+  --line: #ffffff12;
+  --line-strong: #3a2f57;
+  --campo-borda: #6f6490;
+  --accent: #b79cff;
+  --accent-strong: #8a63f2;
+  --focus-ring: #b79cff;
+  --text-on-accent: #150c2b;
+  --unread: #ffcf6e;
+  --interruptor-ligado: #8a63f2;
+}

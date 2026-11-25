@@ -1,0 +1,34 @@
+name: CI (TrivoMod)
+
+on:
+  pull_request:
+    paths:
+      - "trivomod/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Testes (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Executar testes
+        working-directory: trivomod
+        run: npm test
+      - name: Verificar compilação universal da janela (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          swiftc -O -target arm64-apple-macos13.0 trivomod/installer/window-mac.swift -o /tmp/tm-arm64
+          swiftc -O -target x86_64-apple-macos13.0 trivomod/installer/window-mac.swift -o /tmp/tm-x86_64
+          lipo -create /tmp/tm-arm64 /tmp/tm-x86_64 -output /tmp/tm-universal
+          lipo -info /tmp/tm-universal

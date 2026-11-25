@@ -1,0 +1,675 @@
+/**
+ * @name Discord
+ * @author TrivoMod
+ * @description Organização do Discord atual: faixa de título fina, botão de início no topo do trilho de servidores (72 px, ícones de 48 px), canais em 240 px, painel do usuário flutuante, cabeçalhos de 48 px, Amigos com abas no cabeçalho e a caixa de texto do Discord.
+ */
+
+/* =====================================================================
+   Paleta. Fica em variáveis do Trivo, então um tema ligado por cima
+   (Catppuccin, AMOLED…) troca as cores e mantém a estrutura.
+   Escuro e Brasa usam o Discord escuro; Claro usa o Discord claro.
+   ===================================================================== */
+html:root[data-tema] {
+  --barra-width: 72px;
+  --sidebar-width: 240px;
+  --topbar-height: 48px;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --radius-l: 8px;
+  --radius-controle: 4px;
+  --radius-cartao: 8px;
+  --botao-raio: 3px;
+  --botao-altura: 38px;
+  --botao-peso: 500;
+  --botao-fonte: .875rem;
+  --font-ui: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --message-group-gap: 17px;
+  --message-row-padding: 2px;
+  --message-continuation-padding: 1px;
+}
+
+html:root[data-tema="escuro"],
+html:root[data-tema="brasa"] {
+  color-scheme: dark;
+  --background: #323339;          /* área das mensagens */
+  --surface-base: #323339;
+  --surface-sidebar: #2c2d32;     /* canais e membros */
+  --surface-raised: #323339;
+  --surface-overlay: #000000b3;
+  --surface-input: #28292e;
+  --surface-hover: #37383e;
+  --surface-active: #404148;
+  --surface-active-line: #4e5058;
+  --surface-neutra: #323339;
+  --surface-neutra-line: #4e5058;
+  --surface-danger: #f23f431a;
+  --surface-warning: #f0b2321a;
+  --foreground: #dbdee1;
+  --soft: #f2f3f5;
+  --muted: #b5bac1;
+  --dim: #949ba4;
+  --line: #3a3b40;
+  --line-strong: #4a4b51;
+  --campo-borda: #3a3b40;
+  --botao-borda: transparent;
+  --text-primary: #dbdee1;
+  --text-secondary: #b5bac1;
+  --text-tertiary: #949ba4;
+  --text-danger: #fa777c;
+  --text-on-accent: #ffffff;
+  --sobre-ativo: #ffffff;
+  --blue: #5865f2;
+  --blue-light: #00a8fc;
+  --green: #23a55a;
+  --green-light: #23a55a;
+  --yellow: #f0b232;
+  --red: #f23f43;
+  --red-light: #fa777c;
+  --accent: #5865f2;              /* blurple */
+  --accent-strong: #4752c4;
+  --focus-ring: #00a8fc;
+  --unread: #f2f3f5;
+  --selo-app: #5865f2;
+  --mencao-texto: #c9cdfb;
+  --interruptor-trilho: #80848e;
+  --interruptor-ligado: #23a55a;
+  --interruptor-botao: #ffffff;
+  --interruptor-botao-ligado: #ffffff;
+  --fundo-da-chamada: #000000;
+  --fundo-da-chamada-forte: #000000;             /* trilho de servidores */           /* painel do usuário */           /* nomes e títulos */
+}
+
+html:root[data-tema="claro"] {
+  color-scheme: light;
+  --background: #ffffff;
+  --surface-base: #ffffff;
+  --surface-sidebar: #f2f3f5;
+  --surface-raised: #ffffff;
+  --surface-overlay: #000000b3;
+  --surface-input: #e3e5e8;
+  --surface-hover: #e8e9eb;
+  --surface-active: #d7d9dc;
+  --surface-neutra: #ffffff;
+  --foreground: #313338;
+  --soft: #060607;
+  --muted: #4e5058;
+  --dim: #5c5e66;
+  --line: #e1e2e4;
+  --line-strong: #c4c9ce;
+  --text-primary: #313338;
+  --text-secondary: #4e5058;
+  --text-tertiary: #5c5e66;
+  --text-on-accent: #ffffff;
+  --sobre-ativo: #060607;
+  --accent: #5865f2;
+  --accent-strong: #4752c4;
+  --focus-ring: #00a8fc;
+  --unread: #060607;
+  --mencao-texto: #505cdc;
+}
+
+/* Cores derivadas: com o Discord puro dão #1e1f22 (trilho), #232428 (painel do usuário),
+   #383a40 (caixa de texto); com um tema por cima, acompanham o tema. */
+html:root[data-tema] {
+  /* Discord atual: trilho, canais e título na mesma cor; painel do usuário um tom acima. */
+  --tm-rail: var(--surface-sidebar);
+  --tm-footer: color-mix(in srgb, var(--surface-sidebar) 94%, #fff);
+  --tm-composer: color-mix(in srgb, var(--background) 95%, var(--text-primary));
+  --tm-hover-msg: color-mix(in srgb, var(--background) 94%, #000);
+  --tm-header: color-mix(in srgb, var(--text-primary) 70%, var(--soft));
+  --tm-scroll: color-mix(in srgb, var(--surface-sidebar) 60%, #000);
+}
+html:root[data-tema="claro"] {
+  --tm-rail: var(--surface-sidebar);
+  --tm-footer: color-mix(in srgb, var(--surface-sidebar) 96%, #000);
+  --tm-composer: color-mix(in srgb, var(--background) 92%, #000);
+  --tm-hover-msg: color-mix(in srgb, var(--background) 97%, #000);
+  --tm-scroll: color-mix(in srgb, var(--surface-sidebar) 80%, #000);
+}
+
+html:root[data-tema] {
+  --tm-titlebar: 36px;
+  --tm-sombra-baixa: 0 1px 0 #04040533, 0 1.5px 0 #0606070d, 0 2px 0 #0404050d;
+  --tm-icone-cinza: var(--text-secondary);
+}
+
+/* =====================================================================
+   IMPORTANTE: nomes como "icone", "item", "lista", "bar", "tab" existem em
+   vários módulos do Trivo. Toda regra aqui é presa à estrutura (`>` ou um
+   pai específico) para não vazar (ex.: o selo de verificado dentro do ícone).
+   ===================================================================== */
+
+@media (min-width: 901px) {
+  /* -------------------------------------------------------------------
+     Moldura do Discord atual: faixa de título fina no topo; trilho de
+     servidores | canais | conteúdo; painel do usuário flutuando por cima
+     do trilho e dos canais, no canto inferior esquerdo.
+     ------------------------------------------------------------------- */
+  .$shell { position: relative; background: var(--tm-rail) !important; grid-template-rows: auto minmax(0, 1fr) auto !important; }
+  .$shell > .$barraColumn { grid-column: 1; grid-row: 2 / 4; }
+  .$shell > .$sidebarColumn { grid-column: 2; grid-row: 2 / 4; }
+  .$shell > .$content { grid-column: 3; grid-row: 2 / 4; }
+  .$shell > .$rodapeDaNavegacao {
+    grid-area: 3 / 1 / auto / 3; z-index: 5; align-self: end;
+    background: transparent !important; border: 0 !important; padding: 0 8px 8px; pointer-events: none;
+  }
+  .$shell > .$rodapeDaNavegacao > * { pointer-events: auto; }
+
+  /* Faixa de título (as abas do Trivo viram as abas compactas da faixa). */
+  .$shell > .$bar {
+    --tab-strip-height: var(--tm-titlebar);
+    height: var(--tm-titlebar) !important; min-height: 0 !important;
+    padding: 0 8px 0 calc(var(--barra-width) + 0px) !important;
+    background: var(--tm-rail) !important; border: 0 !important; box-shadow: none !important;
+    align-items: center !important;
+  }
+  html[data-barra=recolhida] .$shell > .$bar { padding-left: 8px !important; }
+  .$shell > .$bar > .$tabs { margin: 0 !important; align-self: center; }
+  .$shell > .$bar > .$tabs > ul { height: var(--tm-titlebar) !important; align-items: center !important; gap: 4px !important; }
+  .$shell > .$bar > .$tabs > ul > li {
+    height: 28px !important; width: auto !important; flex: 0 1 auto !important; min-width: 0 !important; max-width: 200px; margin: 0 !important;
+  }
+  .$shell > .$bar > .$tabs > ul > li > a {
+    height: 28px !important; border: 0 !important; border-radius: 6px !important; padding: 0 26px 0 6px !important; gap: 6px !important;
+    color: var(--text-tertiary) !important; background: transparent !important;
+  }
+  .$shell > .$bar > .$tabs > ul > li > a:hover { background: var(--surface-hover) !important; color: var(--text-primary) !important; }
+  .$shell > .$bar > .$tabs > ul > li > a[aria-current=page] { background: var(--surface-active) !important; color: var(--tm-header) !important; }
+  .$shell > .$bar > .$tabs > ul > li > a[aria-current=page]::after { display: none !important; }
+  .$shell > .$bar > .$tabs > ul > li > a > span:first-child { width: 18px !important; height: 18px !important; border-radius: 5px !important; }
+  .$shell > .$bar > .$tabs > ul > li > a > span:nth-child(2) > span:first-child { font-size: 13px !important; font-weight: 500 !important; }
+  .$shell > .$bar > .$tabs > ul > li > a > span:nth-child(2) > span:nth-child(2) { display: none !important; }
+  .$shell > .$bar > .$tabs > ul > li > button { right: 4px !important; width: 20px !important; height: 20px !important; min-width: 0 !important; min-height: 0 !important; opacity: 0 !important; }
+  .$shell > .$bar > .$tabs > ul > li:hover > button,
+  .$shell > .$bar > .$tabs > ul > li:has(> a[aria-current=page]) > button { opacity: 1 !important; }
+  .$shell > .$bar > .$tabs > ul > li > button svg { width: 14px !important; height: 14px !important; }
+  .$shell > .$bar > .$actions { gap: 2px !important; }
+  .$shell > .$bar > .$actions > button { width: 28px !important; height: 28px !important; min-width: 0 !important; min-height: 0 !important; color: var(--tm-icone-cinza) !important; }
+  .$shell > .$bar > .$actions > button:hover { color: var(--tm-header) !important; background: transparent !important; }
+  .$shell > .$bar > .$actions > button svg { width: 20px !important; height: 20px !important; }
+
+  /* Botão "Início" vai para o topo do trilho, como o botão de mensagens diretas do Discord,
+     com o separador logo abaixo. */
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home {
+    position: absolute !important; z-index: 4;
+    top: calc(var(--safe-top, 0px) + var(--tm-titlebar) + 12px); left: calc(var(--safe-left, 0px) + (var(--barra-width) - 48px) / 2);
+    width: 48px !important; height: 48px !important; margin: 0 !important; padding: 0 !important;
+    display: grid !important; place-items: center; align-self: auto !important;
+    border-radius: 50% !important; background: var(--background) !important; color: var(--tm-header) !important;
+    transition: border-radius .15s ease-out, background-color .15s ease-out, color .15s ease-out;
+  }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home svg { width: 26px; height: 26px; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home:hover,
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home[aria-current=page] {
+    border-radius: 16px !important; background: var(--accent) !important; color: #fff !important;
+  }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home::before {
+    content: ""; position: absolute; left: calc((var(--barra-width) - 48px) / -2); top: 50%; translate: 0 -50%;
+    width: 4px; height: 0; border-radius: 0 4px 4px 0; background: var(--tm-header); transition: height .15s ease-out;
+  }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home:hover::before { height: 20px; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home[aria-current=page]::before { height: 40px; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home::after {
+    content: ""; position: absolute; top: 56px; left: 8px; width: 32px; height: 2px; border-radius: 1px;
+    background: color-mix(in srgb, var(--tm-header) 12%, transparent); pointer-events: none;
+  }
+  html:not([data-barra=recolhida]) .$barraColumn > .$barra > ul { padding-top: 78px !important; }
+
+  /* Painel do usuário flutuante. */
+  .$shell > .$rodapeDaNavegacao > footer {
+    background: var(--tm-footer) !important; border: 1px solid color-mix(in srgb, var(--tm-header) 7%, transparent) !important;
+    border-radius: 8px !important; box-shadow: 0 6px 16px #0000003d; overflow: hidden;
+  }
+  .$barraColumn > .$barra > ul { padding-bottom: 76px !important; }
+  .$sidebarColumn .$sidebarScroll { padding-bottom: 76px !important; }
+}
+
+/* =====================================================================
+   Trilho de servidores (72 px, ícones de 48 px).
+   ===================================================================== */
+.$barraColumn, .$barraColumn > .$barra { background: var(--tm-rail) !important; border-right: 0 !important; }
+.$barraColumn > .$barra > ul { gap: 8px !important; padding-top: 12px; }
+.$barraColumn > .$barra > ul > li > a,
+.$barraColumn > .$barra > ul > li > button {
+  width: 48px !important; height: 48px !important; border-radius: 50% !important; transition: border-radius .15s ease-out;
+}
+.$barraColumn > .$barra > ul > li > :is(a, button):is(:hover, [data-ativo]) { border-radius: 16px !important; }
+.$barraColumn > .$barra > ul > li > :is(a, button) > :is(.$icone, .$iconeDaPasta) {
+  width: 48px !important; height: 48px !important; border-radius: inherit !important;
+  background: var(--background); color: var(--tm-header); font-size: 18px; font-weight: 500;
+  transition: background-color .15s ease-out, color .15s ease-out;
+}
+.$barraColumn > .$barra > ul > li > :is(a, button):is(:hover, [data-ativo]) > .$icone:not(:has(img)):not([data-acao]) { background: var(--accent); color: #fff; }
+/* Criar servidor / descobrir: verdes, como no Discord. */
+.$barraColumn > .$barra > ul > li > :is(a, button) > .$icone[data-acao] { color: var(--green) !important; }
+.$barraColumn > .$barra > ul > li > :is(a, button):hover > .$icone[data-acao] { background: var(--green) !important; color: #fff !important; }
+/* Selo (verificado/parceiro) no canto do ícone: tamanho original do Trivo. */
+.$barraColumn > .$barra > ul > li > :is(a, button) > .$seloNoIcone { background: var(--tm-rail); box-shadow: 0 0 0 2px var(--tm-rail); }
+.$barraColumn > .$barra > ul > li > :is(a, button) > .$seloNoIcone svg { width: 14px !important; height: 14px !important; }
+/* Pílula branca à esquerda: 8 px com não lidas, 20 px no hover, 40 px no servidor aberto. */
+.$barraColumn > .$barra > ul > li > :is(a, button)::after {
+  content: "" !important; position: absolute; left: calc((var(--barra-width) - 48px) / -2) !important; top: 50% !important; translate: 0 -50%;
+  width: 4px !important; height: 0; border-radius: 0 4px 4px 0 !important; background: var(--tm-header) !important;
+  transition: height .15s ease-out;
+}
+.$barraColumn > .$barra > ul > li > :is(a, button)[data-nao-lidas]::after { height: 8px !important; }
+.$barraColumn > .$barra > ul > li > :is(a, button):hover::after { height: 20px !important; }
+.$barraColumn > .$barra > ul > li > :is(a, button)[data-ativo]::after { height: 40px !important; }
+.$barraColumn > .$barra > ul > li > button:not([data-pasta])::after { display: none; }
+
+/* =====================================================================
+   Coluna de canais (240 px).
+   ===================================================================== */
+.$shell > .$sidebarColumn {
+  background: var(--surface-sidebar) !important; border: 0 !important; border-radius: 8px 0 0 0 !important; overflow: hidden !important;
+  box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--tm-header) 6%, transparent) !important;
+}
+.$sidebarColumn .$sidebar { background: transparent !important; }
+.$sidebarColumn .$sidebarScroll {
+  padding: 0 8px 8px !important; overflow-x: hidden !important;
+  scrollbar-width: thin; scrollbar-color: var(--tm-scroll) transparent;
+}
+.$sidebarColumn .$sidebarScroll::-webkit-scrollbar-thumb { background: var(--tm-scroll) !important; }
+
+/* Cabeçalho do servidor (48 px, nome + seta). */
+.$sidebarColumn .$sidebarTopo > header {
+  height: 48px !important; min-height: 48px !important; border-bottom: 0 !important; padding: 0 !important;
+  box-shadow: var(--tm-sombra-baixa) !important; position: relative; z-index: 2; background: transparent !important;
+}
+.$sidebarColumn .$sidebarTopo > header > button:first-child {
+  height: 48px !important; padding: 0 16px !important; border-radius: 0 !important; flex: 1;
+  font-size: 16px !important; font-weight: 600 !important; color: var(--tm-header) !important; background: transparent !important;
+}
+.$sidebarColumn .$sidebarTopo > header > button:first-child:hover { background: var(--surface-hover) !important; }
+.$sidebarColumn .$sidebarTopo > header > button:first-child span { font-size: 16px !important; font-weight: 600 !important; }
+.$sidebarColumn .$sidebarTopo > header > button:not(:first-child) { color: var(--tm-icone-cinza) !important; }
+.$sidebarColumn .$sidebarScroll > button:first-child { margin-top: 12px !important; }
+
+/* Início: faixa "Encontre ou comece uma conversa" (48 px, presa no topo). */
+.$sidebarColumn .$sidebarScroll .$buscaDoInicio {
+  position: sticky; top: 0; z-index: 2; margin: 0 -8px 8px !important; padding: 0 10px !important;
+  height: 48px !important; min-height: 48px !important; border-bottom: 0 !important;
+  background: var(--surface-sidebar) !important; box-shadow: var(--tm-sombra-baixa) !important;
+}
+.$sidebarColumn .$buscaDoInicio > .$faixaDeBusca {
+  width: 100% !important; height: 28px !important; padding: 1px 6px !important; border: 0 !important; border-radius: 4px !important;
+  background: var(--tm-rail) !important; color: var(--text-tertiary) !important; font-size: 14px !important; font-weight: 500 !important;
+}
+.$sidebarColumn .$buscaDoInicio > .$faixaDeBusca svg { display: none !important; }
+
+/* Itens fixos do Início (Amigos, Lume): 42 px, ícone de 24 px. */
+.$sidebarColumn .$channelGroup > .$channelLink {
+  min-height: 42px !important; height: 42px; padding: 0 8px !important; gap: 12px !important; margin: 1px 0 !important;
+  border-radius: 4px !important; border: 0 !important; color: var(--text-tertiary) !important; font-size: 16px !important; font-weight: 500 !important;
+}
+.$sidebarColumn .$channelGroup > .$channelLink > .$linhaIcone { width: 24px !important; height: 24px !important; }
+
+/* Categorias. */
+.$sidebarColumn .$channelGroup:not(.$buscaDoInicio) { margin-top: 0 !important; padding-top: 16px; }
+.$sidebarColumn .$channelGroupRow { min-height: 24px; padding: 0 !important; }
+.$sidebarColumn :is(.$channelGroupLabel, .$channelGroupButton) {
+  text-transform: uppercase; font-size: 12px !important; font-weight: 600 !important; letter-spacing: .02em !important;
+  color: var(--text-tertiary) !important; padding-left: 2px !important; padding-right: 8px !important;
+}
+.$sidebarColumn .$channelGroupLabel { padding: 0 8px 4px 10px !important; min-height: 0 !important; display: block; }
+.$sidebarColumn .$channelGroupButton:hover { color: var(--text-primary) !important; background: transparent !important; }
+.$sidebarColumn .$channelGroupRow > button { color: var(--text-tertiary) !important; }
+.$sidebarColumn .$sidebarNote { padding: 4px 10px !important; font-size: 14px; color: var(--text-tertiary); }
+
+/* Canais: 32 px, cantos de 4 px, ações do canal só no hover. */
+.$sidebarColumn .$linhaDoCanal {
+  border-radius: 4px !important; border: 0 !important; margin: 1px 0 1px 8px !important; background: transparent;
+}
+.$sidebarColumn .$linhaDoCanal > .$channelLink {
+  min-height: 32px !important; padding: 6px 8px !important; gap: 6px !important; margin: 0 !important; border: 0 !important;
+  background: transparent !important; border-radius: 4px !important;
+  color: var(--text-tertiary) !important; font-size: 16px !important; font-weight: 500 !important; line-height: 20px;
+}
+.$sidebarColumn .$linhaDoCanal .$linhaIcone { width: 20px !important; height: 20px !important; color: var(--text-tertiary); }
+.$sidebarColumn .$cantoDoCanal { opacity: 0; }
+.$sidebarColumn .$linhaDoCanal:is(:hover, :focus-within, :has(> .$channelLinkActive)) .$cantoDoCanal { opacity: 1; }
+.$sidebarColumn :is(.$linhaDoCanal:hover, .$channelGroup > .$channelLink:hover) { background: var(--surface-hover) !important; }
+.$sidebarColumn .$linhaDoCanal:hover > .$channelLink,
+.$sidebarColumn .$channelGroup > .$channelLink:hover { color: var(--text-secondary) !important; background: transparent; }
+.$sidebarColumn :is(.$linhaDoCanal:has(> .$channelLinkActive), .$channelGroup > .$channelLinkActive) { background: var(--surface-active) !important; }
+.$sidebarColumn :is(.$linhaDoCanal > .$channelLinkActive, .$channelGroup > .$channelLinkActive) { color: var(--tm-header) !important; }
+.$sidebarColumn .$channelLinkUnread { color: var(--tm-header) !important; font-weight: 600 !important; }
+.$sidebarColumn .$channelName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.$sidebarColumn .$unreadBadge { background: var(--red) !important; color: #fff !important; border-radius: 8px; font-size: 12px; font-weight: 700; }
+
+/* Painel do usuário. */
+.$sidebarFooter { background: var(--tm-footer) !important; border-top: 0 !important; }
+.$sidebarFooter .$footerUserRow { min-height: 52px !important; padding: 0 8px !important; }
+.$sidebarFooter .$footerDisplayName { font-size: 14px !important; font-weight: 600 !important; color: var(--tm-header) !important; }
+.$sidebarFooter .$footerUsername { font-size: 12px !important; color: var(--text-tertiary) !important; }
+.$sidebarFooter .$footerQuickControls > button { width: 32px !important; height: 32px !important; color: var(--tm-icone-cinza) !important; border-radius: 4px !important; }
+.$sidebarFooter .$footerQuickControls > button:hover { background: var(--surface-hover) !important; color: var(--tm-header) !important; }
+.$sidebarFooter .$footerQuickControls > button svg { width: 20px !important; height: 20px !important; }
+
+/* =====================================================================
+   Conteúdo.
+   ===================================================================== */
+.$shell > .$content { background: var(--background) !important; border: 0 !important; box-shadow: none !important; }
+
+/* Amigos: título e abas na mesma faixa de 48 px; "Adicionar amigo" verde logo depois das abas. */
+.$shell > .$content main:has(> .$barraDaLista) {
+  grid-template-columns: auto minmax(0, 1fr) !important; grid-template-rows: 48px minmax(0, 1fr) !important;
+  background: var(--background) !important;
+}
+.$shell > .$content main:has(> .$barraDaLista) > header {
+  grid-area: 1 / 1; min-height: 48px !important; height: 48px; padding: 0 0 0 16px !important; gap: 8px !important;
+  border-bottom: 0 !important; box-shadow: var(--tm-sombra-baixa); position: relative; z-index: 1;
+}
+.$shell > .$content main:has(> .$barraDaLista) > header::after {
+  content: ""; width: 1px; height: 24px; margin: 0 8px; background: var(--line-strong);
+}
+.$shell > .$content main:has(> .$barraDaLista) > header h1 { font-size: 16px !important; font-weight: 600 !important; color: var(--tm-header) !important; }
+.$shell > .$content main:has(> .$barraDaLista) > header svg { width: 24px !important; height: 24px !important; color: var(--text-tertiary) !important; }
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista {
+  grid-area: 1 / 2; height: 48px; padding: 0 16px 0 0 !important; gap: 16px !important;
+  box-shadow: var(--tm-sombra-baixa); position: relative; z-index: 1;
+}
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista [role=tablist] { gap: 16px !important; overflow: visible; }
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista [role=tab] {
+  min-height: 0 !important; height: 24px !important; padding: 2px 8px !important; border: 0 !important; border-radius: 4px !important;
+  font-size: 16px !important; font-weight: 500 !important; line-height: 20px; color: var(--text-secondary) !important; background: transparent !important;
+}
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista [role=tab]:hover { background: var(--surface-hover) !important; color: var(--text-primary) !important; }
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista [role=tab][aria-selected=true] { background: var(--surface-active) !important; color: var(--tm-header) !important; }
+html:root .$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar {
+  margin-inline-start: 0 !important; min-height: 0 !important; height: 24px !important; inline-size: auto !important;
+  padding: 2px 8px !important; border: 0 !important; border-radius: 4px !important;
+  background: var(--green) !important; color: #fff !important; font-size: 14px !important; font-weight: 500 !important;
+}
+html:root .$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar:hover { background: color-mix(in srgb, var(--green) 82%, #000) !important; }
+html:root .$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar[aria-expanded=true] {
+  background: transparent !important; color: var(--green) !important;
+}
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar svg { display: none !important; }
+.$shell > .$content main:has(> .$barraDaLista) > [role=tabpanel] { grid-area: 2 / 1 / auto / -1; padding: 16px 20px 0 30px !important; }
+.$shell > .$content main:has(> .$barraDaLista) > [role=tabpanel] > h2 {
+  padding: 16px 0 8px !important; font-size: 12px !important; font-weight: 600 !important; letter-spacing: .02em !important; color: var(--text-tertiary) !important;
+}
+
+/* Conversa: cabeçalho de 48 px. */
+.$chat > .$chatHeader {
+  min-height: 48px !important; height: 48px; padding: 0 8px 0 16px !important; border-bottom: 0 !important; gap: 8px;
+  box-shadow: var(--tm-sombra-baixa); position: relative; z-index: 1;
+}
+.$chat > .$chatHeader h1 { font-size: 16px !important; font-weight: 600 !important; color: var(--tm-header) !important; }
+.$chat > .$chatHeader > .$chatHeaderIcone { width: 24px !important; height: 24px !important; color: var(--text-tertiary) !important; }
+.$chat > .$chatHeader .$chatHeaderTopico { font-size: 14px !important; color: var(--text-secondary) !important; border-left-color: var(--line-strong) !important; }
+.$chat > .$chatHeader button[data-variante=icone] {
+  width: 32px !important; height: 32px !important; min-width: 0 !important; min-height: 0 !important;
+  background: transparent !important; color: var(--tm-icone-cinza) !important;
+}
+.$chat > .$chatHeader button[data-variante=icone]:hover,
+.$chat > .$chatHeader button[data-variante=icone][aria-pressed=true] { color: var(--tm-header) !important; }
+.$chat > .$chatHeader button[data-variante=icone] svg { width: 22px !important; height: 22px !important; }
+.$chat > .$chatHeader .$searchTrigger {
+  width: 144px !important; height: 24px !important; min-height: 0 !important; padding: 0 6px !important;
+  border: 0 !important; border-radius: 4px !important; background: var(--tm-rail) !important;
+  color: var(--text-tertiary) !important; font-size: 14px !important;
+}
+.$chat > .$chatHeader .$searchTrigger svg { width: 16px !important; height: 16px !important; flex: none; }
+.$chat > .$chatHeader .$searchTrigger > span { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Lista de mensagens. */
+.$chat > .$messageList { padding: 0 0 24px !important; scrollbar-color: var(--tm-scroll) transparent; }
+.$chat > .$messageList::-webkit-scrollbar { width: 16px !important; }
+.$chat > .$messageList::-webkit-scrollbar-thumb {
+  background: var(--tm-scroll) !important; border: 4px solid transparent !important; border-radius: 8px !important; background-clip: padding-box !important;
+}
+.$chat > .$messageList::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--surface-sidebar) 70%, transparent) !important;
+  border: 4px solid transparent; border-radius: 8px; background-clip: padding-box;
+}
+/* "Boas-vindas a #canal": recuo de 16 px e ícone de 68 px, como no Discord. */
+.$chat > .$messageList .$start { margin: 16px !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
+.$chat > .$messageList .$start > .$channelIcon { width: 68px !important; height: 68px !important; background: color-mix(in srgb, var(--tm-header) 18%, var(--background)) !important; }
+.$chat > .$messageList .$start > .$channelIcon svg { width: 40px !important; height: 40px !important; }
+.$chat > .$messageList .$start > .$title { font-size: 32px !important; font-weight: 700 !important; line-height: 40px; margin: 8px 0 !important; color: var(--tm-header) !important; }
+.$chat > .$messageList .$start > .$line { font-size: 16px !important; color: var(--text-secondary) !important; }
+
+/* Linha da mensagem: avatar de 40 px a 16 px da borda e texto a 72 px. */
+.$messageList .$message, .$messageList .$messageFailed {
+  padding: 2px 48px 2px 16px !important; gap: 16px !important; border-radius: 0 !important;
+  line-height: 1.375rem; font-size: 16px;
+}
+.$messageList :is(.$message, .$messageFailed):hover { background: var(--tm-hover-msg) !important; }
+.$messageList .$message[data-continuacao=sim] .$messageTime[data-na-margem=sim] { inline-size: 40px; flex: none; text-align: right; margin-left: 0; font-size: 11px !important; }
+.$messageList .$messageAvatar { inline-size: 40px !important; block-size: 40px !important; font-size: 16px !important; margin-top: 2px; }
+.$messageList :is(.$message, .$messageFailed)[data-resposta=sim] { grid-template-columns: 40px minmax(0, 1fr) !important; column-gap: 16px !important; }
+.$messageList .$messageAuthor { font-size: 16px !important; font-weight: 500 !important; color: var(--tm-header) !important; }
+.$messageList .$messageTime { font-size: 12px !important; color: var(--text-tertiary) !important; margin-left: 4px; font-weight: 500; }
+.$messageList .$messageContent { font-size: 16px !important; line-height: 1.375rem !important; color: var(--text-primary); }
+.$messageList [data-mencionada=sim] { background: #f0b2321a !important; box-shadow: inset 2px 0 0 0 var(--yellow) !important; }
+.$messageList .$mencao { background: color-mix(in srgb, var(--accent) 30%, transparent) !important; color: var(--mencao-texto) !important; border-radius: 3px; padding: 0 2px; font-weight: 500; }
+.$messageList .$mencao:hover { background: var(--accent) !important; color: #fff !important; }
+.$messageList .$reacao { border-radius: 8px !important; background: var(--surface-sidebar) !important; border: 1px solid transparent !important; min-height: 24px; }
+.$messageList .$reacao:hover { border-color: var(--line-strong) !important; }
+.$messageList .$reacao[aria-pressed=true] { background: color-mix(in srgb, var(--accent) 15%, transparent) !important; border-color: var(--accent) !important; }
+.$messageList .$acoesDaMensagem { border-radius: 8px; background: var(--background); box-shadow: 0 0 0 1px #0000000f, 0 2px 10px 0 #0003; }
+.$messageList .$citacao { border-left: 4px solid var(--line-strong); border-radius: 4px; }
+
+/* Caixa de escrever: "+" de anexar à esquerda, ícones de 24 px à direita, sem aviso embaixo. */
+.$chat > .$composerWrap { background: transparent !important; border: 0 !important; padding: 0 16px 24px !important; }
+.$chat > .$composerWrap > .$composer {
+  position: relative; min-height: 44px; background: var(--tm-composer) !important; border: 0 !important; border-radius: 8px !important;
+  align-items: center !important; box-shadow: none !important;
+}
+.$chat > .$composerWrap > .$composer:focus-within { border: 0 !important; outline: 0 !important; }
+.$chat > .$composerWrap > .$composer > .$composerInput {
+  min-height: 44px !important; padding: 11px 10px 11px 56px !important; font-size: 16px !important;
+  line-height: 1.375rem; color: var(--text-primary); background: transparent !important;
+}
+.$chat > .$composerWrap > .$composer > .$composerInput::placeholder { color: var(--text-tertiary); }
+.$chat > .$composerWrap > .$composer > .$composerAcoes { height: 44px !important; align-items: center !important; gap: 4px !important; padding-right: 12px !important; }
+.$chat > .$composerWrap > .$composer > .$composerAcoes button {
+  width: 32px !important; height: 32px !important; min-width: 0 !important; min-height: 0 !important;
+  color: var(--tm-icone-cinza) !important; background: transparent !important;
+}
+.$chat > .$composerWrap > .$composer > .$composerAcoes button:hover { color: var(--tm-header) !important; }
+.$chat > .$composerWrap > .$composer > .$composerAcoes button svg { width: 24px !important; height: 24px !important; }
+.$chat > .$composerWrap > .$composer > .$composerAcoes > .$composerAnexar {
+  position: absolute; left: 12px; top: 6px; width: 32px !important; height: 32px !important;
+}
+/* Enviar: o Discord não tem botão; aqui ele só aparece quando há texto. */
+.$chat > .$composerWrap > .$composer:has(> .$composerInput:placeholder-shown) .$composerSend { display: none !important; }
+.$chat > .$composerWrap > .$composerHint { display: none !important; }
+.$chat > .$composerWrap > .$composerDigitando { font-size: 12px; color: var(--text-secondary); }
+
+/* Membros: 240 px, sem cabeçalho próprio (o botão fica no cabeçalho da conversa). */
+.$areaDoCanal > aside { inline-size: 240px !important; background: var(--surface-sidebar) !important; border-left: 0 !important; }
+@media (min-width: 901px) {
+  .$areaDoCanal > aside > header { display: none !important; }
+}
+.$areaDoCanal > aside h3 {
+  padding: 24px 8px 0 8px !important; height: 40px; font-size: 12px !important; font-weight: 600 !important;
+  letter-spacing: .02em !important; text-transform: uppercase; color: var(--text-tertiary) !important;
+}
+.$areaDoCanal > aside li > button {
+  min-height: 42px !important; padding: 1px 8px !important; border-radius: 4px !important; gap: 12px !important;
+  font-size: 16px !important; font-weight: 500 !important; color: var(--text-tertiary) !important;
+}
+.$areaDoCanal > aside li > button:hover { background: var(--surface-hover) !important; color: var(--text-primary) !important; }
+
+/* Botões e campos no jeito do Discord. */
+html:root[data-tema] button[data-variante=primario],
+html:root[data-tema] button[data-variante=primary] { background: var(--accent); color: #fff; border-radius: 3px; }
+
+
+/* =====================================================================
+   Discord atual (2025+), conferido numa captura do Discord de verdade:
+   - nada de faixa de abas: o título da janela é a única faixa no topo, com o
+     nome da tela no meio e Avisos/TrivoMod no canto direito (o mod pinta a
+     barra do Trivo; ver native.js);
+   - trilho e canais com a mesma cor; a área da direita é um painel mais claro
+     com borda e canto superior esquerdo arredondado;
+   - ícones de servidor em "squircle" de 40 px (não mais círculos), 8 px entre eles;
+   - abas de Amigos em pílulas; "Adicionar amigo" em blurple.
+   Com o trilho recolhido, a faixa de abas do Trivo volta (os botões dela ficam sem outro lugar).
+   ===================================================================== */
+@media (min-width: 901px) {
+  html:not([data-barra=recolhida]) .$shell > .$bar {
+    height: 0 !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; overflow: visible !important;
+  }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$tabs { display: none !important; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home { top: calc(var(--safe-top, 0px) + 8px) !important; }
+  html:not([data-barra=recolhida]) .$barraColumn > .$barra > ul { padding-top: 64px !important; }
+
+  /* Avisos e TrivoMod: na barra de título quando o mod conseguiu pintá-la ([data-tm-frame]);
+     senão, no pé do trilho. */
+  html[data-tm-frame]:not([data-barra=recolhida]) .$shell > .$bar > .$actions { display: none !important; }
+  html:not([data-tm-frame]):not([data-barra=recolhida]) .$shell > .$bar > .$actions {
+    position: absolute !important; z-index: 4; bottom: 72px;
+    left: calc(var(--safe-left, 0px) + (var(--barra-width) - 40px) / 2);
+    width: 40px; flex-direction: column !important; align-items: center !important; gap: 8px !important;
+  }
+  html:not([data-tm-frame]):not([data-barra=recolhida]) .$shell > .$bar > .$actions > button:is([aria-label="Nova aba"], [aria-label="Todas as abas"]) { display: none !important; }
+  html:not([data-tm-frame]):not([data-barra=recolhida]) .$shell > .$bar > .$actions > button {
+    width: 40px !important; height: 40px !important; border-radius: 12px !important;
+    background: color-mix(in srgb, var(--tm-header) 8%, transparent) !important; color: var(--tm-header) !important;
+  }
+  html:not([data-tm-frame]):not([data-barra=recolhida]) .$barraColumn > .$barra > ul { padding-bottom: 172px !important; }
+
+  /* Início: o quadrado blurple do Discord. */
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home {
+    width: 40px !important; height: 40px !important; left: calc(var(--safe-left, 0px) + (var(--barra-width) - 40px) / 2) !important;
+    border-radius: 12px !important; background: color-mix(in srgb, var(--tm-header) 8%, transparent) !important;
+  }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home:is(:hover, [aria-current=page]) { border-radius: 12px !important; background: var(--accent) !important; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home svg { width: 22px !important; height: 22px !important; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home::before { left: calc((var(--barra-width) - 40px) / -2) !important; }
+  html:not([data-barra=recolhida]) .$shell > .$bar > .$home::after { top: 48px !important; left: 8px !important; width: 24px !important; }
+
+  /* Área da direita: painel com borda e canto arredondado sobre o fundo dos canais. */
+  .$shell > .$sidebarColumn { border-radius: 0 !important; box-shadow: none !important; }
+  .$shell > .$content {
+    border-top: 1px solid var(--line) !important; border-left: 1px solid var(--line) !important;
+    border-top-left-radius: 8px !important; overflow: hidden !important; background-clip: padding-box !important;
+  }
+  .$shell { background: var(--surface-sidebar) !important; }
+  /* Alinha a linha de baixo do topo dos canais com a do cabeçalho da direita (que desce 1 px pela borda do .$content). */
+  .$sidebarColumn .$sidebarTopo > header,
+  .$sidebarColumn .$sidebarScroll .$buscaDoInicio { height: 49px !important; min-height: 49px !important; }
+}
+
+/* Servidores: squircle de 40 px; a forma não muda no hover (só a pílula). */
+.$barraColumn > .$barra > ul { gap: 8px !important; }
+.$barraColumn > .$barra > ul > li > :is(a, button),
+.$barraColumn > .$barra > ul > li > :is(a, button):is(:hover, [data-ativo]),
+.$barraColumn > .$barra > ul > li > :is(a, button) > :is(.$icone, .$iconeDaPasta) {
+  width: 40px !important; height: 40px !important; border-radius: 12px !important;
+}
+.$barraColumn > .$barra > ul > li > :is(a, button) > :is(.$icone, .$iconeDaPasta) {
+  background: color-mix(in srgb, var(--tm-header) 8%, transparent); overflow: hidden;
+}
+.$barraColumn > .$barra > ul > li > :is(a, button) > .$icone img { width: 100% !important; height: 100% !important; object-fit: cover; }
+.$barraColumn > .$barra > ul > li > :is(a, button)::after { left: calc((var(--barra-width) - 40px) / -2) !important; }
+.$barraColumn > .$barra > ul > li > :is(a, button) > .$seloNoIcone { right: -4px; bottom: -4px; }
+
+/* Topo da coluna de canais: "Encontre ou comece uma conversa" como botão centrado. */
+.$sidebarColumn .$sidebarScroll .$buscaDoInicio { box-shadow: none !important; border-bottom: 1px solid var(--line) !important; background: var(--surface-sidebar) !important; }
+.$sidebarColumn .$buscaDoInicio > .$faixaDeBusca {
+  height: 32px !important; border-radius: 8px !important; justify-content: center !important; text-align: center !important;
+  background: color-mix(in srgb, var(--tm-header) 6%, var(--surface-sidebar)) !important; color: var(--text-primary) !important;
+  font-size: 14px !important; font-weight: 600 !important;
+}
+.$sidebarColumn .$sidebarTopo > header { box-shadow: none !important; border-bottom: 1px solid var(--line) !important; }
+.$sidebarColumn .$channelGroup > .$channelLink { border-radius: 8px !important; }
+.$sidebarColumn .$linhaDoCanal { border-radius: 8px !important; }
+
+/* Cabeçalhos da direita: linha fina em vez de sombra. */
+.$shell > .$content main:has(> .$barraDaLista) > :is(header, .$barraDaLista),
+.$chat > .$chatHeader { box-shadow: none !important; border-bottom: 1px solid var(--line) !important; }
+.$shell > .$content main:has(> .$barraDaLista) > header::after { width: 4px !important; height: 4px !important; border-radius: 50%; background: var(--text-tertiary) !important; }
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista [role=tablist] { gap: 8px !important; }
+.$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista [role=tab] {
+  height: 32px !important; padding: 0 12px !important; border-radius: 8px !important; font-weight: 500 !important;
+}
+html:root .$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar {
+  height: 32px !important; padding: 0 12px !important; border-radius: 8px !important; background: var(--accent) !important; font-weight: 600 !important;
+}
+html:root .$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar:hover { background: var(--accent-strong) !important; }
+html:root .$shell > .$content main:has(> .$barraDaLista) > .$barraDaLista > button.$acaoDeAdicionar[aria-expanded=true] {
+  background: color-mix(in srgb, var(--accent) 20%, transparent) !important; color: var(--accent) !important;
+}
+
+/* Painel do usuário flutuante, um tom acima, cantos de 8 px. */
+.$shell > .$rodapeDaNavegacao > footer { border-radius: 8px !important; box-shadow: 0 4px 12px #0003 !important; background-clip: padding-box !important; }
+/* Botão "+" do compositor sem borda sobrando dentro da caixa. */
+.$chat > .$composerWrap .$composerAnexar { border: 0 !important; }
+
+/* =====================================================================
+   Chamada conectada (acima do usuário, no painel flutuante), como no Discord:
+     [sinal] Voz conectada                 [desligar]
+     Sala de voz / Servidor
+     [ câmera ][ tela ]   (botões iguais, 32 px)
+   Uma linha fina separa da linha do usuário.
+   ===================================================================== */
+.$sidebarFooter .$chamadaConectada {
+  display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto !important;
+  grid-template-areas: "sinal estado sair" "local local sair" "acoes acoes acoes" "aviso aviso aviso" !important;
+  align-items: center !important; column-gap: 4px !important; row-gap: 0 !important;
+  padding: 10px 8px 8px 10px !important; background: transparent !important; border: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+.$sidebarFooter .$chamadaConectada > .$chamadaLinhas { display: contents !important; }
+.$sidebarFooter .$chamadaSinal { grid-area: sinal !important; width: 18px !important; height: 18px !important; }
+.$sidebarFooter .$chamadaSinal svg { width: 18px !important; height: 18px !important; stroke-width: 2.2px !important; }
+.$sidebarFooter .$chamadaEstado {
+  grid-area: estado !important; padding: 0 !important; gap: 4px !important; background: none !important; min-width: 0;
+}
+.$sidebarFooter .$chamadaTitulo { font-size: 14px !important; font-weight: 600 !important; line-height: 18px !important; white-space: nowrap; }
+.$sidebarFooter .$chamadaEstado:hover .$chamadaTitulo { text-decoration: underline; }
+.$sidebarFooter .$chamadaDica { display: none !important; }
+.$sidebarFooter .$chamadaLocal {
+  grid-area: local !important; padding: 0 !important; gap: 4px !important; background: none !important;
+  font-size: 12px !important; line-height: 16px !important; color: var(--text-secondary) !important; min-width: 0;
+}
+.$sidebarFooter .$chamadaLocal:hover > span:not([aria-hidden]) { text-decoration: underline; }
+.$sidebarFooter .$chamadaSair {
+  grid-area: sair !important; width: 32px !important; height: 32px !important; border-radius: 8px !important;
+  color: var(--text-secondary) !important; background: transparent !important;
+}
+.$sidebarFooter .$chamadaSair:hover { color: #fff !important; background: var(--red, #da373c) !important; }
+.$sidebarFooter .$chamadaSair svg { width: 20px !important; height: 20px !important; }
+.$sidebarFooter .$chamadaAcoes {
+  grid-area: acoes !important; display: flex !important; flex-wrap: nowrap !important; gap: 8px !important;
+  margin-top: 8px !important; padding: 0 !important;
+}
+.$sidebarFooter .$chamadaAcoes > button {
+  flex: 1 1 0 !important; min-width: 0 !important; height: 32px !important; border: 0 !important; border-radius: 8px !important;
+  background: color-mix(in srgb, var(--tm-header) 8%, transparent) !important; color: var(--tm-header) !important;
+}
+.$sidebarFooter .$chamadaAcoes > button:hover { background: color-mix(in srgb, var(--tm-header) 14%, transparent) !important; }
+.$sidebarFooter .$chamadaAcoes > button[aria-pressed=true] { background: color-mix(in srgb, var(--tm-header) 22%, transparent) !important; }
+.$sidebarFooter .$chamadaAcoes > button svg { width: 20px !important; height: 20px !important; }
+.$sidebarFooter .$chamadaAcoes > .$chamadaTransmitindo {
+  flex: 1 1 0 !important; justify-content: center !important; height: 32px !important; padding: 0 8px !important;
+  background: var(--red, #da373c) !important; color: #fff !important; font-size: 12px !important;
+}
+.$sidebarFooter .$avisoDaFaixa { grid-area: aviso !important; margin: 6px 0 0 !important; font-size: 12px !important; }
+/* Linha do usuário dentro do mesmo cartão. */
+.$sidebarFooter:has(.$chamadaConectada) { background: var(--tm-footer) !important; }
+@media (min-width: 901px) {
+  .$shell:has(.$chamadaConectada) > .$sidebarColumn .$sidebarScroll { padding-bottom: 176px !important; }
+  html[data-tm-frame] .$shell:has(.$chamadaConectada) .$barraColumn > .$barra > ul { padding-bottom: 176px !important; }
+}
+
+/* Painel do usuário: sempre a largura toda da coluna (trilho + canais, menos a margem), com ou sem chamada. */
+@media (min-width: 901px) {
+  .$shell > .$rodapeDaNavegacao { justify-self: stretch !important; width: auto !important; }
+  .$shell > .$rodapeDaNavegacao > footer { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+  .$shell > .$rodapeDaNavegacao > footer > * { min-width: 0 !important; }
+}
+/* "Sala de voz / Servidor\" numa linha só; corta no fim do texto inteiro, não no meio do nome da sala. */
+.$sidebarFooter .$chamadaLocal {
+  display: block !important; width: 100% !important; white-space: nowrap !important; overflow: hidden !important;
+  text-overflow: ellipsis !important; text-align: left !important;
+}
+.$sidebarFooter .$chamadaLocal > span { display: inline !important; }
+.$sidebarFooter .$chamadaLocal > span[aria-hidden] { margin: 0 4px; opacity: .7; }
+.$sidebarFooter .$chamadaEstado { overflow: hidden !important; }
+.$sidebarFooter .$chamadaTitulo { overflow: hidden !important; text-overflow: ellipsis !important; }

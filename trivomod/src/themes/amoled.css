@@ -1,0 +1,13 @@
+/**
+ * @name AMOLED
+ * @author TrivoMod
+ * @description Fundo preto puro no tema Escuro, para telas OLED. Os painéis ficam quase pretos.
+ */
+html:root[data-tema="escuro"] {
+  --background: #000000;
+  --surface-sidebar: #050605;
+  --surface-raised: #0b0d0c;
+  --line: #ffffff14;
+  --fundo-da-chamada: #000000;
+  --fundo-da-chamada-forte: #000000;
+}

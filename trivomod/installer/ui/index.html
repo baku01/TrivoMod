@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="pt-BR" data-platform="__PLATFORM__">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Instalador do TrivoMod</title>
+<link rel="icon" type="image/webp" href="/trivo-logo.webp">
+<style nonce="__NONCE__">
+  /* Tokens: macOS por padrão; Windows 11 (Fluent) em [data-platform=win]. Claro/escuro via light-dark(). */
+  :root {
+    color-scheme: light dark;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    --size: 13px;
+    --bg: light-dark(#ececec, #1e1e1e);
+    --group: light-dark(#ffffff, #2a2a2a);
+    --group-line: light-dark(rgb(0 0 0 / .09), rgb(255 255 255 / .07));
+    --sep: light-dark(rgb(0 0 0 / .08), rgb(255 255 255 / .08));
+    --text: light-dark(rgb(0 0 0 / .86), rgb(255 255 255 / .88));
+    --muted: light-dark(rgb(0 0 0 / .62), rgb(255 255 255 / .62));
+    --accent: light-dark(#007aff, #0a84ff);
+    --on-accent: #fff;
+    --ok: light-dark(#1e8e3e, #32d74b);
+    --warn: light-dark(#b25000, #ff9f0a);
+    --bad: light-dark(#d70015, #ff6961);
+    --btn: light-dark(#ffffff, rgb(255 255 255 / .16));
+    --btn-hover: light-dark(#f6f6f6, rgb(255 255 255 / .22));
+    --btn-line: light-dark(rgb(0 0 0 / .14), rgb(255 255 255 / .06));
+    --btn-shadow: light-dark(0 1px 1px rgb(0 0 0 / .06), 0 1px 0 rgb(255 255 255 / .06) inset);
+    --field: light-dark(#ffffff, rgb(255 255 255 / .06));
+    --field-line: light-dark(rgb(0 0 0 / .18), rgb(255 255 255 / .14));
+    --r-group: 10px; --r-btn: 6px; --r-field: 6px;
+    --btn-pad: 5px 14px; --btn-h: 28px;
+    --focus: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+    --notice-ok: light-dark(#e9f7ee, rgb(50 215 75 / .12));
+    --notice-warn: light-dark(#fff4e5, rgb(255 159 10 / .13));
+    --notice-bad: light-dark(#fdecee, rgb(255 105 97 / .13));
+    --notice-info: light-dark(#eef4ff, rgb(10 132 255 / .13));
+  }
+  /* Cor de destaque escolhida em Ajustes do Sistema (Safari); o texto sobre ela fica branco, como nos botões do macOS. */
+  @supports (color: AccentColor) { :root[data-platform=mac] { --accent: AccentColor; } }
+  :root[data-theme=light] { color-scheme: light; }
+  :root[data-theme=dark] { color-scheme: dark; }
+
+  :root[data-platform=win] {
+    --font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+    --size: 14px;
+    --bg: light-dark(#f3f3f3, #202020);
+    --group: light-dark(#fbfbfb, #2b2b2b);
+    --group-line: light-dark(#e5e5e5, #1d1d1d);
+    --sep: light-dark(#e5e5e5, rgb(255 255 255 / .08));
+    --text: light-dark(rgb(0 0 0 / .9), #ffffff);
+    --muted: light-dark(rgb(0 0 0 / .62), rgb(255 255 255 / .79));
+    --accent: light-dark(#005fb8, #60cdff);
+    --on-accent: light-dark(#ffffff, #000000);
+    --ok: light-dark(#0f7b0f, #6ccb5f);
+    --warn: light-dark(#9d5d00, #fce100);
+    --bad: light-dark(#c42b1c, #ff99a4);
+    --btn: light-dark(#fbfbfb, #2d2d2d);
+    --btn-hover: light-dark(#f6f6f6, #323232);
+    --btn-line: light-dark(#e5e5e5, #303030);
+    --btn-shadow: light-dark(0 1px 0 rgb(0 0 0 / .1), 0 -1px 0 rgb(255 255 255 / .07) inset);
+    --field: light-dark(#ffffff, #2d2d2d);
+    --field-line: light-dark(#e5e5e5, #303030);
+    --r-group: 8px; --r-btn: 4px; --r-field: 4px;
+    --btn-pad: 5px 16px; --btn-h: 32px;
+    --focus: 0 0 0 1px light-dark(#fff, #000), 0 0 0 3px var(--text);
+    --notice-ok: light-dark(#dff6dd, #393d1b);
+    --notice-warn: light-dark(#fff4ce, #433519);
+    --notice-bad: light-dark(#fde7e9, #442726);
+    --notice-info: light-dark(#f6f6f6, #2b2b2b);
+  }
+  :root[data-platform=linux] { --font: system-ui, "Cantarell", "Ubuntu", sans-serif; --size: 14px; }
+
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; min-height: 100vh; color: var(--text); font: var(--size)/1.4 var(--font); -webkit-font-smoothing: antialiased; display: flex; justify-content: center; padding: 24px 20px; }
+  [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  main { width: min(560px, 100%); display: flex; flex-direction: column; gap: 20px; }
+
+  header { display: flex; align-items: center; gap: 14px; }
+  header img { width: 64px; height: 64px; border-radius: 15px; display: block; flex: none; box-shadow: 0 1px 3px rgb(0 0 0 / .18); }
+  h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+  [data-platform=win] h1 { font-family: "Segoe UI Variable Display", var(--font); font-weight: 600; font-size: 28px; letter-spacing: 0; }
+  header p { margin: 2px 0 0; color: var(--muted); }
+
+  h2 { margin: 0 0 6px 2px; font-size: 1em; font-weight: 600; }
+  [data-platform=win] h2 { font-size: 14px; }
+
+  /* Aviso de estado */
+  .notice { display: grid; grid-template-columns: 20px 1fr; gap: 2px 10px; padding: 12px 14px; border-radius: var(--r-group); background: var(--notice-info); border: 1px solid var(--group-line); }
+  .notice.ok { background: var(--notice-ok); } .notice.warn { background: var(--notice-warn); } .notice.err { background: var(--notice-bad); }
+  .notice .icon { grid-row: span 2; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: light-dark(#fff, #000); background: var(--accent); margin-top: 1px; }
+  .notice.ok .icon { background: var(--ok); } .notice.warn .icon { background: var(--warn); } .notice.err .icon { background: var(--bad); }
+  .notice strong { font-weight: 600; }
+  .notice p { margin: 0; }
+  .notice .hint { color: var(--text); }
+  .notice details { grid-column: 2; margin-top: 6px; }
+  .notice details pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font: 11px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--muted); }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent); border-top-color: var(--muted); animation: spin .8s linear infinite; }
+  .notice .icon.busy { background: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+  /* Lista agrupada */
+  .group { margin: 0; padding: 0; border: 1px solid var(--group-line); border-radius: var(--r-group); background: var(--group); overflow: hidden; min-width: 0; }
+  [data-platform=win] .group { border: 0; background: none; display: flex; flex-direction: column; gap: 4px; overflow: visible; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; position: relative; }
+  .row + .row { border-top: 1px solid var(--sep); }
+  [data-platform=win] .row { background: var(--group); border: 1px solid var(--group-line); border-radius: var(--r-group); padding: 12px 16px; }
+  [data-platform=win] .row + .row { border-top: 1px solid var(--group-line); }
+  [data-platform=win] .row:hover { background: var(--btn-hover); }
+  .row input { appearance: none; margin: 0; flex: none; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--field-line); background: var(--field); display: grid; place-items: center; }
+  .row input::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--on-accent); transform: scale(0); transition: transform .12s; }
+  .row input:checked { background: var(--accent); border-color: transparent; }
+  .row input:checked::after { transform: scale(1); }
+  [data-platform=win] .row input { width: 20px; height: 20px; border-color: light-dark(rgb(0 0 0 / .45), rgb(255 255 255 / .6)); }
+  [data-platform=win] .row input::after { width: 10px; height: 10px; }
+  .row input:focus-visible { outline: none; box-shadow: var(--focus); }
+  .row input:disabled + .meta { opacity: .6; }
+  .row .meta { flex: 1; min-width: 0; }
+  .row .name { font-weight: 500; }
+  .row .name small { font-weight: 400; color: var(--muted); font-size: .9em; }
+  .row .path { color: var(--muted); font-size: .9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .row .path bdi { direction: ltr; }
+  .state { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .9em; white-space: nowrap; }
+  .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .55; }
+  .state.ok::before { background: var(--ok); opacity: 1; } .state.warn::before { background: var(--warn); opacity: 1; }
+  .empty, .loading { padding: 16px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+  [data-platform=win] .empty, [data-platform=win] .loading { background: var(--group); border: 1px solid var(--group-line); border-radius: var(--r-group); }
+
+  /* Botões */
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .actions .spacer { flex: 1; }
+  button { font: inherit; color: inherit; }
+  .btn { appearance: none; min-height: var(--btn-h); padding: var(--btn-pad); border-radius: var(--r-btn); border: 1px solid var(--btn-line); background: var(--btn); color: var(--text); box-shadow: var(--btn-shadow); cursor: default; white-space: nowrap; font-weight: 400; }
+  [data-platform=mac] .btn { border-width: .5px; }
+  .btn:hover:not(:disabled) { background: var(--btn-hover); }
+  .btn:active:not(:disabled) { filter: brightness(.95); }
+  .btn.primary { background: var(--accent); border-color: transparent; color: var(--on-accent); font-weight: 500; }
+  .btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 90%, var(--text)); }
+  .btn.danger { color: var(--bad); }
+  .btn:disabled { opacity: .45; }
+  .btn:focus-visible, .link:focus-visible, summary:focus-visible, input[type=text]:focus-visible { outline: none; box-shadow: var(--focus); }
+  .explain { margin: -10px 2px 0; color: var(--muted); font-size: .92em; min-height: 1.4em; }
+
+  /* Recolhíveis */
+  details.more > summary { cursor: default; color: var(--muted); list-style: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 4px; padding: 2px; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::before { content: "›"; display: inline-block; width: 10px; transition: transform .15s; font-weight: 600; }
+  details.more[open] > summary::before { transform: rotate(90deg); }
+  details.more > .body { margin-top: 8px; }
+  .add { display: flex; gap: 8px; }
+  input[type=text] { flex: 1; min-width: 0; min-height: var(--btn-h); background: var(--field); color: var(--text); border: 1px solid var(--field-line); border-radius: var(--r-field); padding: 4px 9px; font: inherit; }
+  [data-platform=win] input[type=text] { border-bottom-color: light-dark(rgb(0 0 0 / .45), rgb(255 255 255 / .55)); }
+  input[type=text]::placeholder { color: var(--muted); opacity: .8; }
+  input[aria-invalid=true] { border-color: var(--bad); }
+  .field-error { color: var(--bad); margin: 6px 2px 0; font-size: .92em; }
+  .tech { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: .92em; }
+  .tech dt { color: var(--muted); } .tech dd { margin: 0; word-break: break-all; }
+  .log { margin-top: 10px; background: var(--field); border: 1px solid var(--group-line); border-radius: var(--r-field); padding: 8px 10px; font: 11px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; max-height: 140px; overflow: auto; color: var(--muted); white-space: pre-wrap; }
+  .log .ok { color: var(--ok); } .log .err { color: var(--bad); }
+
+  footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--sep); color: var(--muted); font-size: .92em; }
+  footer .links { display: flex; gap: 8px; }
+  .gone { margin: 80px auto; text-align: center; color: var(--muted); }
+  .gone strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+
+  /* Confirmação */
+  dialog { border: 1px solid var(--group-line); border-radius: 12px; padding: 20px; width: min(300px, calc(100vw - 32px)); background: var(--group); color: var(--text); box-shadow: 0 10px 40px rgb(0 0 0 / .3); text-align: center; }
+  dialog::backdrop { background: rgb(0 0 0 / .25); }
+  dialog img { width: 56px; height: 56px; border-radius: 13px; }
+  dialog h3 { margin: 10px 0 6px; font-size: 1em; font-weight: 700; }
+  dialog p { margin: 0 0 16px; font-size: .92em; color: var(--text); }
+  dialog .buttons { display: flex; flex-direction: column; gap: 8px; }
+  dialog .btn { width: 100%; }
+  [data-platform=win] dialog { width: min(440px, calc(100vw - 32px)); padding: 0; text-align: left; border-radius: 8px; overflow: hidden; }
+  [data-platform=win] dialog .content { padding: 24px; }
+  [data-platform=win] dialog img { display: none; }
+  [data-platform=win] dialog h3 { margin: 0 0 12px; font: 600 20px/1.3 "Segoe UI Variable Display", var(--font); }
+  [data-platform=win] dialog p { margin: 0; }
+  [data-platform=win] dialog .buttons { flex-direction: row; padding: 24px; background: var(--bg); border-top: 1px solid var(--group-line); }
+</style>
+</head>
+<body>
+<main id="app" aria-busy="true">
+  <header>
+    <img src="/trivo-logo.webp" alt="" width="64" height="64">
+    <div><h1>TrivoMod</h1><p>Temas e plugins para o Trivo · versão __VERSION__</p></div>
+  </header>
+
+  <div class="notice" id="notice" role="status" aria-live="polite" hidden>
+    <span class="icon" id="noticeIcon" aria-hidden="true"></span>
+    <p><strong id="noticeTitle"></strong></p>
+    <p class="hint" id="noticeHint"></p>
+    <details class="more" id="noticeMore" hidden><summary>Detalhes</summary><pre id="noticeDetail"></pre></details>
+  </div>
+
+  <section aria-labelledby="h-installs">
+    <h2 id="h-installs">Escolha o Trivo</h2>
+    <fieldset class="group" id="list" aria-labelledby="h-installs">
+      <div class="loading"><span class="spinner" aria-hidden="true"></span>Procurando o Trivo…</div>
+    </fieldset>
+  </section>
+
+  <div class="actions">
+    <button class="btn danger" type="button" id="uninstall" hidden>Desinstalar…</button>
+    <span class="spacer"></span>
+    <button class="btn" type="button" id="repair" hidden>Reparar</button>
+    <button class="btn primary" type="button" id="install" disabled>Instalar</button>
+  </div>
+  <p class="explain" id="explain"></p>
+
+  <details class="more" id="addBox">
+    <summary>O Trivo não está na lista?</summary>
+    <div class="body">
+      <form class="add" id="addForm" novalidate>
+        <label class="sr-only" for="addPath">Local do Trivo</label>
+        <input type="text" id="addPath" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="addError">
+        <button class="btn" type="submit" id="addBtn">Adicionar</button>
+      </form>
+      <p class="field-error" id="addError" hidden></p>
+    </div>
+  </details>
+
+  <details class="more" id="techBox">
+    <summary>Detalhes</summary>
+    <div class="body">
+      <dl class="tech" id="tech"></dl>
+      <div class="log" id="log" role="log" aria-label="Registro"></div>
+    </div>
+  </details>
+
+  <footer>
+    <span>Seus temas e plugins ficam na pasta de dados.</span>
+    <span class="links">
+      <button class="btn link" type="button" id="openData">Abrir pasta de dados</button>
+      <button class="btn link" type="button" id="quit">Sair</button>
+    </span>
+  </footer>
+</main>
+
+<dialog id="confirm" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+  <div class="content">
+    <img src="/trivo-logo.webp" alt="">
+    <h3 id="confirmTitle">Desinstalar o TrivoMod?</h3>
+    <p id="confirmText">O Trivo volta ao original. Seus temas e plugins continuam guardados na pasta de dados.</p>
+  </div>
+  <div class="buttons">
+    <button class="btn primary" type="button" id="confirmNo" autofocus>Cancelar</button>
+    <button class="btn danger" type="button" id="confirmYes">Desinstalar</button>
+  </div>
+</dialog>
+
+<script nonce="__NONCE__">
+(() => {
+  "use strict";
+  const TOKEN = "__TOKEN__";
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement;
+  // Pré-visualização: ?plataforma=mac|win|linux e ?aparencia=claro|escuro (só mudam a aparência).
+  const q = new URLSearchParams(location.search);
+  if (/^(mac|win|linux)$/.test(q.get("plataforma") || "")) root.dataset.platform = q.get("plataforma");
+  if (q.get("aparencia") === "claro") root.dataset.theme = "light";
+  if (q.get("aparencia") === "escuro") root.dataset.theme = "dark";
+  const P = root.dataset.platform;
+  const KEYS = P === "mac" ? { quit: "Cmd+Q", panel: "Cmd+Option+T" } : { quit: P === "win" ? "Alt+F4" : "Ctrl+Q", panel: "Ctrl+Alt+T" };
+  const CLOSE_HINT = P === "mac" ? "Feche o Trivo (Cmd+Q) e tente de novo." : P === "win" ? "Feche o Trivo (inclusive pelo ícone perto do relógio) e tente de novo." : "Feche o Trivo e tente de novo.";
+
+  let installs = null; // null = ainda carregando
+  let selected = null;
+  let busy = null; // "install" | "repair" | "uninstall" | null
+  let gone = false;
+  let result = null; // último resultado { kind, title, hint, detail, app, code }
+  let listSig = "";
+
+  // Windows: ação principal à esquerda (também na ordem do Tab); macOS: à direita, destrutiva isolada à esquerda.
+  if (P === "win") {
+    $("uninstall").parentElement.append($("install"), $("repair"), $("uninstall").nextElementSibling, $("uninstall"));
+    $("confirmNo").parentElement.append($("confirmYes"), $("confirmNo")); // Fluent: confirmar à esquerda, Cancelar (padrão) à direita
+  }
+  $("addPath").placeholder = P === "win" ? "C:\\Users\\você\\AppData\\Local\\Programs\\Trivo" : P === "mac" ? "/Applications/Trivo.app" : "/opt/Trivo";
+
+  async function api(route, body) {
+    let res;
+    try {
+      res = await fetch(route, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-trivomod-token": TOKEN },
+        body: JSON.stringify(body || {}),
+      });
+    } catch {
+      lost();
+      throw new Error("sem conexão");
+    }
+    let data;
+    try { data = await res.json(); } catch { data = null; }
+    if (!data) return { ok: false, error: "Resposta inesperada do instalador.", hint: "Recarregue a página.", detail: `HTTP ${res.status}` };
+    if (res.status === 403) return { ok: false, error: "Esta janela não está mais autorizada.", hint: "Feche esta janela e abra o instalador de novo.", detail: data.error };
+    return data;
+  }
+
+  function log(text, kind) {
+    const line = document.createElement("div");
+    if (kind) line.className = kind;
+    line.textContent = `${new Date().toLocaleTimeString("pt-BR")}  ${text}`;
+    $("log").append(line);
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+
+  const current = () => (installs || []).find((i) => i.app === selected) || null;
+
+  function stateOf(i) {
+    if (i.error) return ["Com problema", "warn"];
+    if (i.running) return ["Aberto", "warn"];
+    if (i.patched && !i.integrityConsistent) return ["Precisa de reparo", "warn"];
+    return i.patched ? ["Mod instalado", "ok"] : ["Sem mod", ""];
+  }
+
+  function el(tag, props, ...kids) {
+    const e = Object.assign(document.createElement(tag), props || {});
+    e.append(...kids);
+    return e;
+  }
+
+  function renderList() {
+    const disabled = !!busy || gone;
+    const sig = JSON.stringify([installs, selected, disabled]);
+    if (sig === listSig) return; // nada mudou: não recria (preserva foco e leitor de tela)
+    listSig = sig;
+    const list = $("list");
+    const hadFocus = list.contains(document.activeElement);
+    list.replaceChildren();
+    if (installs === null) {
+      list.append(el("div", { className: "loading" }, el("span", { className: "spinner" }), "Procurando o Trivo…"));
+      return;
+    }
+    if (installs.loadError) {
+      list.append(el("div", { className: "empty" }, "Não consegui verificar as instalações."));
+      return;
+    }
+    if (!installs.length) {
+      list.append(el("div", { className: "empty" }, P === "mac"
+        ? "Não encontrei o Trivo em Aplicativos. Instale o app do Trivo ou indique onde ele está."
+        : "Não encontrei o Trivo. Instale o app do Trivo ou indique onde ele está."));
+      return;
+    }
+    installs.forEach((i, n) => {
+      const id = `inst-${n}`;
+      const radio = el("input", { type: "radio", name: "install", id, value: i.app, checked: i.app === selected, disabled });
+      const [stText, stKind] = stateOf(i);
+      const name = el("div", { className: "name" }, `Trivo ${i.version && i.version !== "?" ? i.version : ""}`.trim());
+      if (i.custom) name.append(" ", el("small", { textContent: "· adicionado por você" }));
+      const pathLine = el("div", { className: "path", title: i.app }, el("bdi", { textContent: i.app }));
+      const row = el("label", { className: "row", htmlFor: id }, radio, el("span", { className: "meta" }, name, pathLine), el("span", { className: `state ${stKind}` }, stText));
+      radio.addEventListener("change", () => { selected = i.app; if (result && result.app !== selected) result = null; render(); });
+      list.append(row);
+    });
+    if (hadFocus) list.querySelector("input:checked")?.focus();
+  }
+
+  function setNotice(n) {
+    const box = $("notice");
+    if (!n) { box.hidden = true; return; }
+    box.hidden = false;
+    box.className = `notice ${n.kind}`;
+    box.setAttribute("role", n.kind === "err" ? "alert" : "status");
+    const icon = $("noticeIcon");
+    icon.className = `icon${n.kind === "busy" ? " busy" : ""}`;
+    icon.replaceChildren(n.kind === "busy" ? el("span", { className: "spinner" }) : ({ ok: "✓", warn: "!", err: "!", info: "i" }[n.kind] || "i"));
+    $("noticeTitle").textContent = n.title;
+    $("noticeHint").textContent = n.hint || "";
+    $("noticeHint").hidden = !n.hint;
+    $("noticeMore").hidden = !n.detail;
+    $("noticeDetail").textContent = n.detail || "";
+  }
+
+  function notice() {
+    const i = current();
+    if (gone) return { kind: "err", title: "O instalador foi fechado.", hint: "Abra o TrivoMod de novo para continuar." };
+    if (busy) {
+      const what = { install: "Instalando o TrivoMod…", repair: "Reparando o TrivoMod…", uninstall: "Desinstalando o TrivoMod…" }[busy];
+      return { kind: "busy", title: what, hint: "Isso leva alguns segundos. Não abra o Trivo até terminar." };
+    }
+    if (result && result.code === "running" && i && !i.running) result = null; // o usuário fechou o Trivo: o aviso já não vale
+    if (result) return result;
+    if (!i) return installs && installs.loadError ? installs.loadError : null;
+    if (i.running) return { kind: "warn", title: "O Trivo está aberto.", hint: `Feche o Trivo (${KEYS.quit}${P === "win" ? ", inclusive pelo ícone perto do relógio" : ""}) para instalar ou desinstalar. Esta tela atualiza sozinha.` };
+    if (i.error) return { kind: "warn", title: "Não consegui ler esta instalação do Trivo.", hint: "Reinstale o Trivo pelo site oficial e abra este instalador de novo. O motivo está em Detalhes." };
+    if (!i.integrityConsistent) return { kind: "warn", title: "Esta instalação está incompleta.", hint: i.patched ? "O Trivo pode não abrir. Clique em Reparar para corrigir." : "O Trivo pode não abrir. Clique em Instalar para corrigir, ou reinstale o Trivo." };
+    return null;
+  }
+
+  function renderActions() {
+    const i = current();
+    const off = !!busy || gone || !i || i.running;
+    const patched = !!(i && i.patched);
+    $("install").hidden = patched || !i;
+    $("repair").hidden = !patched;
+    $("uninstall").hidden = !patched;
+    $("install").disabled = off;
+    $("repair").disabled = off;
+    $("uninstall").disabled = off;
+    // O botão principal muda: Reparar vira principal quando há algo a consertar.
+    $("repair").classList.toggle("primary", patched && !i.integrityConsistent);
+    $("explain").textContent = !i || gone ? "" : busy ? "" : i.running ? "" : patched
+      ? "O TrivoMod está instalado. Reparar reinstala o mod; Desinstalar devolve o Trivo ao original."
+      : "Instala o TrivoMod neste Trivo. Dá para desfazer quando quiser.";
+    for (const id of ["openData", "quit", "addBtn", "addPath"]) $(id).disabled = !!busy || gone;
+    $("app").setAttribute("aria-busy", String(installs === null || !!busy));
+  }
+
+  function renderTech() {
+    const i = current();
+    const rows = [];
+    if (i) {
+      rows.push(["Local", i.app], ["Versão do Trivo", i.version], ["Sistema", { mac: "macOS", win: "Windows", unix: "Linux" }[i.kind] || i.kind],
+        ["Mod instalado", i.patched ? "sim" : "não"], ["Cópia do original", i.hasBackup ? "sim" : "não"],
+        ["Integridade do asar", i.integrityConsistent ? "ok" : "divergente"], ["Aberto agora", i.running ? "sim" : "não"]);
+      if (i.error) rows.push(["Erro", i.error]);
+    }
+    if (dataDir) rows.push(["Pasta de dados", dataDir]);
+    $("tech").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", { textContent: k }), el("dd", { textContent: String(v) })]));
+  }
+
+  let dataDir = "";
+  function render() {
+    if (installs && !installs.some((i) => i.app === selected)) selected = installs.length ? installs[0].app : null;
+    renderList();
+    renderActions();
+    setNotice(notice());
+    renderTech();
+  }
+
+  async function refresh() {
+    if (gone) return;
+    let r;
+    try { r = await api("/api/installs"); } catch { return; }
+    if (!r.ok) {
+      installs = Object.assign([], { loadError: { kind: "err", title: r.error || "Não consegui procurar o Trivo.", hint: r.hint, detail: r.detail } });
+    } else {
+      installs = r.installs || [];
+      dataDir = r.dataDir || "";
+    }
+    render();
+  }
+
+  function lost() {
+    if (gone) return;
+    gone = true;
+    log("Perdi a conexão com o instalador.", "err");
+    render();
+  }
+
+  async function run(kind) {
+    const i = current();
+    if (!i || busy || gone) return;
+    busy = kind;
+    result = null;
+    render();
+    const label = { install: "Instalando", repair: "Reparando", uninstall: "Desinstalando" }[kind];
+    log(`${label}: ${i.app}`);
+    let r;
+    try {
+      r = await api(kind === "uninstall" ? "/api/uninstall" : "/api/install", { app: i.app });
+    } catch {
+      busy = null;
+      render();
+      return;
+    }
+    busy = null;
+    if (r.ok) {
+      log(r.message + (r.detail ? ` (${r.detail})` : ""), "ok");
+      result = kind === "uninstall"
+        ? { kind: "ok", app: i.app, title: "TrivoMod desinstalado.", hint: "O Trivo voltou ao original. Seus temas e plugins continuam na pasta de dados." }
+        : { kind: "ok", app: i.app, title: kind === "repair" ? "TrivoMod reparado." : "TrivoMod instalado.", hint: `Abra o Trivo. O painel do mod abre com ${KEYS.panel}.` };
+    } else {
+      log(`${r.error}${r.detail ? ` (${r.detail})` : ""}`, "err");
+      result = { kind: "err", app: i.app, code: r.code, title: r.error || "Algo deu errado.", hint: r.code === "running" ? CLOSE_HINT : r.hint, detail: r.detail };
+    }
+    await refresh();
+    $("notice").hidden || $("notice").scrollIntoView({ block: "nearest" });
+  }
+
+  const confirmBox = $("confirm");
+  function askUninstall() {
+    if (!current() || busy) return;
+    if (typeof confirmBox.showModal !== "function") { if (window.confirm("Desinstalar o TrivoMod? O Trivo volta ao original.")) run("uninstall"); return; }
+    confirmBox.showModal();
+    $("confirmNo").focus();
+  }
+  $("confirmNo").addEventListener("click", () => confirmBox.close("no"));
+  $("confirmYes").addEventListener("click", () => confirmBox.close("yes"));
+  confirmBox.addEventListener("close", () => {
+    if (confirmBox.returnValue === "yes") run("uninstall");
+    else $("uninstall").focus();
+    confirmBox.returnValue = "";
+  });
+
+  $("install").addEventListener("click", () => run("install"));
+  $("repair").addEventListener("click", () => run("repair"));
+  $("uninstall").addEventListener("click", askUninstall);
+  $("openData").addEventListener("click", async () => {
+    const r = await api("/api/open-data").catch(() => null);
+    if (r && !r.ok) log(r.error || "Não consegui abrir a pasta.", "err");
+  });
+
+  function addError(text) {
+    $("addError").textContent = text || "";
+    $("addError").hidden = !text;
+    $("addPath").setAttribute("aria-invalid", String(!!text));
+  }
+  $("addPath").addEventListener("input", () => addError(""));
+  $("addForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const value = $("addPath").value.trim();
+    if (!value) { addError("Informe o local do Trivo."); $("addPath").focus(); return; }
+    if (busy || gone) return;
+    $("addBtn").disabled = true;
+    let r;
+    try { r = await api("/api/add", { app: value }); } catch { return; }
+    $("addBtn").disabled = false;
+    if (r.ok) {
+      $("addPath").value = "";
+      addError("");
+      selected = r.app;
+      result = null;
+      log(`Adicionado: ${r.app}`, "ok");
+      await refresh();
+      $("list").querySelector("input:checked")?.focus();
+    } else {
+      addError(`${r.error || "Não consegui adicionar."} ${r.hint || ""}`.trim());
+      log(`${r.error}${r.detail ? ` (${r.detail})` : ""}`, "err");
+      $("addPath").focus();
+    }
+  });
+
+  $("quit").addEventListener("click", async () => {
+    if (busy) return;
+    stop();
+    await api("/api/quit").catch(() => {});
+    gone = true;
+    try { window.close(); } catch {}
+    $("app").replaceChildren(el("div", { className: "gone", role: "status" }, el("strong", { textContent: "Instalador encerrado." }), "Pode fechar esta janela."));
+  });
+
+  window.addEventListener("beforeunload", (e) => { if (busy) { e.preventDefault(); e.returnValue = ""; } });
+
+  // Batimento: o servidor fecha sozinho quando a página some.
+  const ping = () => { if (!gone) api("/api/ping").catch(() => {}); };
+  const timer = setInterval(() => { ping(); if (!busy && document.visibilityState === "visible") refresh(); }, 3000);
+  function stop() { clearInterval(timer); }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { ping(); refresh(); } });
+
+  log("Procurando o Trivo…");
+  ping();
+  refresh().then(() => {
+    if (!installs) return;
+    if (installs.length) log(installs.length === 1 ? "1 instalação encontrada." : `${installs.length} instalações encontradas.`);
+    else { log("Nenhuma instalação encontrada."); $("addBox").open = true; }
+  });
+})();
+</script>
+</body>
+</html>

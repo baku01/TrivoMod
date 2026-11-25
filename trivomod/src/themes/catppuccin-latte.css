@@ -1,0 +1,98 @@
+/**
+ * @name Catppuccin Latte
+ * @author TrivoMod (paleta: Catppuccin, MIT)
+ * @description Variação clara do Catppuccin, em qualquer tema do Trivo. Destaque: mauve (troque no plugin "Catppuccin: destaque").
+ */
+/* Gerado por tools/gen-catppuccin.js — não edite à mão. */
+html:root[data-tema] {
+  --ctp-rosewater: #dc8a78;
+  --ctp-flamingo: #dd7878;
+  --ctp-pink: #ea76cb;
+  --ctp-mauve: #8839ef;
+  --ctp-red: #d20f39;
+  --ctp-maroon: #e64553;
+  --ctp-peach: #fe640b;
+  --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b;
+  --ctp-teal: #179299;
+  --ctp-sky: #04a5e5;
+  --ctp-sapphire: #209fb5;
+  --ctp-blue: #1e66f5;
+  --ctp-lavender: #7287fd;
+  --ctp-text: #4c4f69;
+  --ctp-subtext1: #5c5f77;
+  --ctp-subtext0: #6c6f85;
+  --ctp-overlay2: #7c7f93;
+  --ctp-overlay1: #8c8fa1;
+  --ctp-overlay0: #9ca0b0;
+  --ctp-surface2: #acb0be;
+  --ctp-surface1: #bcc0cc;
+  --ctp-surface0: #ccd0da;
+  --ctp-base: #eff1f5;
+  --ctp-mantle: #e6e9ef;
+  --ctp-crust: #dce0e8;
+  --ctp-accent: var(--ctp-mauve);
+
+  color-scheme: light;
+  --background: var(--ctp-base);
+  --surface-base: var(--ctp-base);
+  --surface-sidebar: var(--ctp-mantle);
+  --surface-raised: #ffffff;
+  --surface-overlay: color-mix(in srgb, var(--ctp-crust) 70%, transparent);
+  --surface-input: color-mix(in srgb, var(--ctp-surface0) 60%, transparent);
+  --surface-hover: color-mix(in srgb, var(--ctp-surface0) 60%, transparent);
+  --surface-active: color-mix(in srgb, var(--ctp-accent) 26%, var(--ctp-surface0));
+  --surface-active-line: color-mix(in srgb, var(--ctp-accent) 55%, transparent);
+  --surface-neutra: color-mix(in srgb, var(--ctp-accent) 12%, var(--ctp-surface0));
+  --surface-neutra-line: color-mix(in srgb, var(--ctp-accent) 30%, transparent);
+  --surface-danger: color-mix(in srgb, var(--ctp-red) 14%, transparent);
+  --surface-warning: color-mix(in srgb, var(--ctp-yellow) 14%, transparent);
+  --foreground: var(--ctp-text);
+  --soft: var(--ctp-subtext1);
+  --muted: var(--ctp-subtext0);
+  --dim: var(--ctp-overlay1);
+  --line: color-mix(in srgb, var(--ctp-surface0) 80%, transparent);
+  --line-strong: var(--ctp-surface1);
+  --campo-borda: var(--ctp-overlay0);
+  --botao-borda: var(--ctp-overlay0);
+  --blue: var(--ctp-blue);
+  --blue-light: var(--ctp-sapphire);
+  --green: var(--ctp-green);
+  --green-light: var(--ctp-green);
+  --yellow: var(--ctp-yellow);
+  --red: var(--ctp-red);
+  --red-light: var(--ctp-red);
+  --text-primary: var(--ctp-text);
+  --text-secondary: var(--ctp-subtext0);
+  --text-tertiary: var(--ctp-overlay1);
+  --text-danger: var(--ctp-red);
+  --accent: var(--ctp-accent);
+  --accent-strong: color-mix(in srgb, var(--ctp-accent) 82%, #fff);
+  --text-on-accent: var(--ctp-base);
+  --sobre-ativo: var(--ctp-text);
+  --focus-ring: var(--ctp-accent);
+  --unread: var(--ctp-peach);
+  --selo-azul: var(--ctp-blue);
+  --selo-parceiro: var(--ctp-teal);
+  --selo-app: var(--ctp-lavender);
+  --mencao-texto: var(--ctp-accent);
+  --interruptor-trilho: var(--ctp-surface2);
+  --interruptor-ligado: var(--ctp-accent);
+  --interruptor-botao: #ffffff;
+  --interruptor-botao-ligado: #ffffff;
+  --fundo-da-chamada: var(--ctp-crust);
+  --fundo-da-chamada-forte: var(--ctp-crust);
+  --brilho-da-chamada: color-mix(in srgb, var(--ctp-accent) 14%, transparent);
+  --avatar-tone-1: var(--ctp-green);
+  --avatar-tone-2: var(--ctp-teal);
+  --avatar-tone-3: var(--ctp-blue);
+  --avatar-tone-4: var(--ctp-mauve);
+  --avatar-tone-5: var(--ctp-peach);
+  --avatar-tone-6: var(--ctp-pink);
+  --avatar-tone-text: var(--ctp-crust);
+}
+
+/* O tema Brasa do Trivo pinta gradientes fixos; o Catppuccin usa a cor lisa. */
+html:root[data-tema] .$shell { background: var(--background); }
+html:root[data-tema] .$sidebarFooter { background: var(--surface-sidebar); border-top-color: var(--line); }
+::selection { background: color-mix(in srgb, var(--ctp-accent) 35%, transparent); }
