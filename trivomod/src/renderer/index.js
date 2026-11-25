@@ -404,7 +404,8 @@
     button.close { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--tm-ctl-radius);
       background: none; color: var(--text-secondary, #bbb); font-size: 18px; cursor: pointer; line-height: 1; }
     button.close:hover { background: var(--surface-hover, #fff1); color: var(--text-primary, #fff); }
-    main { flex: 1; overflow: auto; padding: 18px 24px 28px; display: flex; flex-direction: column; gap: 10px; outline: none; }
+    main { flex: 1; min-height: 0; overflow: auto; padding: 18px 24px 28px; display: flex; flex-direction: column; gap: 10px; outline: none; }
+    main > * { flex-shrink: 0; }
     main > h2 { margin: 10px 0 0; font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--text-tertiary, #999); }
     main > h2:first-child { margin-top: 0; }
 
@@ -417,9 +418,9 @@
     button.btn.primary:hover { filter: brightness(1.08); }
     button.btn.danger { color: var(--text-danger, #f88); }
     button.btn:disabled { opacity: .45; cursor: not-allowed; }
-    .card { border: 1px solid var(--line, #333); border-radius: calc(var(--tm-radius) - 4px); padding: 12px 14px; display: flex;
+    .card { flex-shrink: 0; border: 1px solid var(--line, #333); border-radius: calc(var(--tm-radius) - 4px); padding: 12px 14px; display: flex;
       flex-direction: column; gap: 8px; background: color-mix(in srgb, var(--surface-input, #fff) 35%, transparent); }
-    .group { border: 1px solid var(--line, #333); border-radius: calc(var(--tm-radius) - 4px); overflow: hidden;
+    .group { flex-shrink: 0; border: 1px solid var(--line, #333); border-radius: calc(var(--tm-radius) - 4px); overflow: hidden;
       background: color-mix(in srgb, var(--surface-input, #fff) 35%, transparent); }
     .group > .item { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 14px; }
     .group > .item + .item { border-top: 1px solid var(--line, #333); }
@@ -1417,7 +1418,8 @@
     .embed { display: flex; flex-direction: column; height: 100%; color: var(--text-primary, #eee); font-size: 14px; }
     .embed .bar { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 0 32px; border-bottom: 1px solid var(--line, #333); flex: none; }
     .embed .bar h2 { margin: 0; flex: 1; font-size: 1.125rem; font-family: var(--font-display, var(--font-ui)); font-weight: 650; letter-spacing: -.01em; }
-    .embed main { flex: 1; overflow: auto; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 10px; outline: none; }
+    .embed main { flex: 1; min-height: 0; overflow: auto; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 10px; outline: none; }
+    .embed main > * { flex-shrink: 0; }
   `;
 
   // ------------------------------------------------------------ botão na barra do topo
