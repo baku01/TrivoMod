@@ -18,6 +18,7 @@ function harness(opts = {}) {
   const lifecycle = [];
   app.relaunch = () => lifecycle.push("relaunch");
   app.exit = (code) => lifecycle.push(`exit:${code}`);
+  app.quit = () => lifecycle.push("quit");
   const sent = [];
   const dialogCalls = [];
   app.dock = { setIcon: (img) => (iconCalls.push(img), undefined) };
@@ -49,7 +50,7 @@ function harness(opts = {}) {
   Module._load = function (request, parent, ...rest) {
     if (request === "electron") return fakeElectron;
     // native.js é de outro dono: o teste decide se ele "existe" e o que faz.
-    if (request === "./native" && parent && /src[\\/]main[\\/]index\.js$/.test(parent.filename)) {
+    if (request === "./native" && parent && /(src|dist)[\\/]main[\\/]index\.js$/.test(parent.filename)) {
       if (opts.native) return { createNativeManager: (o) => (opts.native.options = o, opts.native) };
       const error = new Error("Cannot find module './native'");
       error.code = "MODULE_NOT_FOUND";
@@ -64,12 +65,16 @@ function harness(opts = {}) {
       fs.writeFileSync(path.join(dataDir, rel), text);
     }
   }
-  const env = { TRIVOMOD_SAFE: undefined, TRIVOMOD_SELFTEST: undefined, ...(opts.env || {}) };
+  const env = { TRIVOMOD_SAFE: undefined, TRIVOMOD_SELFTEST: undefined, TRIVOMOD_NO_UPDATE: undefined, ...(opts.env || {}) };
   const saved = Object.fromEntries(Object.keys(env).map((k) => [k, process.env[k]]));
   for (const [k, v] of Object.entries(env)) v === undefined ? delete process.env[k] : (process.env[k] = v);
   try {
-    delete require.cache[require.resolve("../src/main/index.js")];
-    require("../src/main/index.js").start({ dataDir, appPath: "/fake/app.asar" });
+    // installed: roda a cópia de <dados>/dist, como o loader do Trivo faz (é onde o atualizador liga).
+    // realpath: as chaves do require.cache são caminhos reais (no macOS /var -> /private/var).
+    const distDir = path.join(fs.realpathSync(dataDir), "dist");
+    const entry = opts.installed ? path.join(distDir, "main", "index.js") : require.resolve("../src/main/index.js");
+    for (const key of Object.keys(require.cache)) if (key === entry || key.startsWith(distDir + path.sep)) delete require.cache[key];
+    require(entry).start({ dataDir, appPath: "/fake/app.asar" });
   } finally {
     Module._load = original;
     for (const [k, v] of Object.entries(saved)) v === undefined ? delete process.env[k] : (process.env[k] = v);
@@ -566,4 +571,118 @@ test("ícone padrão dinâmico: boot entrega gerador e set-theme-icon respeita o
   assert.equal(skipped.ok, true);
   assert.equal(skipped.skipped, "custom");
   assert.deepEqual(fs.readFileSync(path.join(dataDir, "icon.png")), pngB);
+});
+
+// ------------------------------------------------------------ atualização automática pelo processo principal
+const crypto = require("node:crypto");
+const bundleLib = require("../src/main/bundle");
+const { copyDir } = require("../installer/patch");
+
+const SRC_DIR = path.resolve(__dirname, "..", "src");
+const CUR = bundleLib.versionOf(fs.readFileSync(path.join(SRC_DIR, "version.js"), "utf8"));
+const NOVA = "0.98.0";
+
+function installedData() {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "trivomod-inst-"));
+  copyDir(SRC_DIR, path.join(dataDir, "dist"));
+  return dataDir;
+}
+
+function releaseFetch(version) {
+  const src = fs.mkdtempSync(path.join(os.tmpdir(), "trivomod-rel-"));
+  copyDir(SRC_DIR, src);
+  fs.writeFileSync(path.join(src, "version.js"), `"use strict";\nmodule.exports = "${version}";\n`);
+  const { buffer } = bundleLib.build(src);
+  const name = bundleLib.assetName(version);
+  const base = `https://github.com/baku01/TrivoMod/releases/download/v${version}`;
+  const sums = Buffer.from(`${crypto.createHash("sha256").update(buffer).digest("hex")}  ${name}\n`);
+  const body = (b) => ({ ok: true, status: 200, headers: { get: () => null }, arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) });
+  return async (url) => {
+    if (url.endsWith("/releases/latest")) {
+      return body(Buffer.from(JSON.stringify({ tag_name: `v${version}`, assets: [{ name, browser_download_url: `${base}/${name}` }, { name: "SHA256SUMS.txt", browser_download_url: `${base}/SHA256SUMS.txt` }] })));
+    }
+    if (url === `${base}/${name}`) return body(buffer);
+    if (url === `${base}/SHA256SUMS.txt`) return body(sums);
+    return { ok: false, status: 404, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(0) };
+  };
+}
+const distVer = (dataDir, dir = "dist") => bundleLib.versionOf(fs.readFileSync(path.join(dataDir, dir, "version.js"), "utf8"));
+
+test("atualização: rodando do código-fonte, com TRIVOMOD_NO_UPDATE ou em modo seguro fica indisponível", async () => {
+  const fonte = harness();
+  assert.equal((await fonte.handlers.handle.get("trivomod:update-status")(trusted)).available, false);
+  assert.equal((await fonte.handlers.handle.get("trivomod:check-update")(trusted)).state, "indisponivel");
+  assert.equal(await fonte.handlers.handle.get("trivomod:restart-to-update")(trusted), false);
+
+  const desligado = harness({ dataDir: installedData(), installed: true, env: { TRIVOMOD_NO_UPDATE: "1" } });
+  assert.equal((await desligado.handlers.handle.get("trivomod:update-status")(trusted)).available, false);
+
+  const seguro = harness({ dataDir: installedData(), installed: true, env: { TRIVOMOD_SAFE: "1" } });
+  assert.equal((await seguro.handlers.handle.get("trivomod:update-status")(trusted)).available, false);
+  assert.equal((await seguro.handlers.handle.get("trivomod:check-update")(trusted)).state, "indisponivel");
+});
+
+test("atualização: cópia instalada baixa, avisa a página, reinicia, troca ao fechar e confirma no boot-ok", async () => {
+  const dataDir = installedData();
+  const sentTo = [];
+  const wc = { mainFrame: { url: "https://trivo.app.br/" }, send: (...a) => sentTo.push(a) };
+  const other = { mainFrame: { url: "https://evil.example/" }, send: () => assert.fail("só o Trivo recebe") };
+  const h = harness({ dataDir, installed: true, fetch: releaseFetch(NOVA), contents: [wc, other] });
+  const evil = { senderFrame: { parent: null, url: "https://evil.example/" } };
+
+  const st0 = await h.handlers.handle.get("trivomod:update-status")(trusted);
+  assert.equal(st0.available, true);
+  assert.equal(st0.enabled, true);
+  assert.equal(st0.current, CUR);
+  assert.equal(await h.handlers.handle.get("trivomod:update-status")(evil), null);
+  assert.equal((await h.handlers.handle.get("trivomod:check-update")(evil)).state, "indisponivel");
+  assert.equal(await h.handlers.handle.get("trivomod:restart-to-update")(trusted), false, "nada baixado ainda");
+
+  const r = await h.handlers.handle.get("trivomod:check-update")(trusted);
+  assert.equal(r.state, "pronta");
+  assert.deepEqual(sentTo, [["trivomod:update-ready", { version: NOVA }]]);
+  assert.equal((await h.handlers.handle.get("trivomod:update-status")(trusted)).staged, NOVA);
+
+  // Desligar nos ajustes some com "enabled", sem perder o que já baixou
+  await h.handlers.handle.get("trivomod:save-settings")(trusted, { autoUpdate: false });
+  assert.equal((await h.handlers.handle.get("trivomod:update-status")(trusted)).enabled, false);
+  await h.handlers.handle.get("trivomod:save-settings")(trusted, { autoUpdate: true });
+
+  assert.equal(await h.handlers.handle.get("trivomod:restart-to-update")(trusted), true);
+  await new Promise((res) => setTimeout(res, 150));
+  assert.deepEqual(h.lifecycle, ["relaunch", "quit"]);
+  h.app.emit("will-quit");
+  assert.equal(distVer(dataDir), NOVA, "trocou ao fechar");
+  assert.equal(distVer(dataDir, "dist.prev"), CUR);
+
+  // Próxima abertura roda a versão nova; o boot-ok da página confirma
+  const nova = harness({ dataDir, installed: true, fetch: releaseFetch(NOVA) });
+  assert.deepEqual(nova.lifecycle, []);
+  assert.equal(nova.bootData().info.version, NOVA);
+  assert.equal(await nova.handlers.handle.get("trivomod:boot-ok")(trusted), true);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, "update.json"), "utf8")).pending, null);
+  nova.app.emit("will-quit");
+});
+
+test("atualização: versão nova que nunca chega ao boot-ok é desfeita na 3ª abertura e o Trivo reabre", async () => {
+  const dataDir = installedData();
+  const h = harness({ dataDir, installed: true, fetch: releaseFetch(NOVA) });
+  assert.equal((await h.handlers.handle.get("trivomod:check-update")(trusted)).state, "pronta");
+  h.app.emit("will-quit");
+  assert.equal(distVer(dataDir), NOVA);
+
+  // Cada abertura "fecha" antes da próxima (will-quit solta os fs.watch, que no Windows prendem a pasta).
+  for (const n of [1, 2]) {
+    const aberta = harness({ dataDir, installed: true });
+    assert.deepEqual(aberta.lifecycle, [], `${n}ª abertura sem boot-ok`);
+    aberta.app.emit("will-quit");
+  }
+  const third = harness({ dataDir, installed: true });
+  assert.deepEqual(third.lifecycle, ["relaunch", "exit:0"], "3ª: volta e reabre");
+  assert.equal(distVer(dataDir), CUR);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, "state.json"), "utf8")).failedBoots, 0, "falhas da versão desfeita não levam a anterior ao modo seguro");
+
+  const back = harness({ dataDir, installed: true, fetch: releaseFetch(NOVA) });
+  assert.deepEqual(back.lifecycle, []);
+  assert.equal((await back.handlers.handle.get("trivomod:check-update")(trusted)).state, "bloqueada");
 });

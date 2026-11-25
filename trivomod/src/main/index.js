@@ -17,6 +17,7 @@ const { createIconManager } = require("./icon");
 const safeState = require("./safemode");
 const backup = require("./backup");
 const { createThemeLinks } = require("./themelinks");
+const { createUpdater } = require("./updater");
 
 const DIST = path.resolve(__dirname, "..");
 
@@ -71,6 +72,40 @@ exports.start = function start({ dataDir, appPath }) {
     }
   };
   log(`TrivoMod ${VERSION} iniciou (app: ${appPath}, seguro: ${safeReason || "não"}, falhas seguidas: ${boot.failedBoots - 1}, depuração: ${debug})`);
+
+  // ------------------------------------------------------------ atualização automática (src/main/updater.js)
+  // Só quando o Trivo roda a cópia instalada em <dados>/dist (rodando do código-fonte não mexe em
+  // nada) e fora do autoteste. TRIVOMOD_NO_UPDATE=1 desliga de vez.
+  let updater = null;
+  // realpath: o require resolve links simbólicos (no macOS /var -> /private/var), o dataDir não.
+  const real = (p) => {
+    try {
+      return fs.realpathSync(p);
+    } catch {
+      return path.resolve(p);
+    }
+  };
+  if (real(DIST) === real(path.join(dataDir, "dist")) && process.env.TRIVOMOD_NO_UPDATE !== "1" && !selftest) {
+    try {
+      updater = createUpdater({
+        dataDir,
+        currentVersion: VERSION,
+        fetch: (url, opts) => (net && typeof net.fetch === "function" ? net.fetch(url, opts) : fetch(url, opts)),
+        log,
+      });
+      // Versão recém-aplicada que não chega ao boot-ok: volta para a anterior e reabre o Trivo.
+      // Modo seguro pedido à mão não conta (não prova que a versão está quebrada).
+      const back = updater.onStartup({ countBoot: safeReason !== "env" });
+      if (back.rolledBack) {
+        safeState.reset(files.state); // as falhas eram da versão desfeita
+        app.relaunch();
+        app.exit(0);
+        return;
+      }
+    } catch (error) {
+      log("atualizador na abertura:", error);
+    }
+  }
 
   // ------------------------------------------------------------ confiança
   /** Só o quadro principal de uma origem do Trivo fala com o mod. */
@@ -387,6 +422,7 @@ exports.start = function start({ dataDir, appPath }) {
   ipcMain.handle("trivomod:boot-ok", (event) => {
     if (!isTrusted(event) || safeMode) return false;
     safeState.reset(files.state);
+    if (updater) updater.confirm(); // a versão aplicada por último funciona
     return true;
   });
 
@@ -477,6 +513,56 @@ exports.start = function start({ dataDir, appPath }) {
       .catch((error) => log("temas online na abertura:", error));
   }
 
+  // ------------------------------------------------------------ atualização automática
+  const UPDATE_FIRST_CHECK_MS = 30_000;
+  const UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+  const updatesOn = () => Boolean(updater) && !safeMode && currentSettings().autoUpdate !== false;
+  const updateStatus = () => ({
+    available: Boolean(updater) && !safeMode,
+    enabled: updatesOn(),
+    ...(updater ? updater.status() : { current: VERSION, staged: null, lastCheck: null, lastError: null, blocked: [] }),
+  });
+  const notifyUpdate = (version) => {
+    for (const wc of webContents.getAllWebContents()) {
+      try {
+        if (allowed.has(new URL(wc.mainFrame.url).origin)) wc.send("trivomod:update-ready", { version });
+      } catch {
+        /* contents destruído ou sem URL */
+      }
+    }
+  };
+  const checkUpdate = async () => {
+    const result = await updater.check();
+    if (result.state === "pronta" && result.nova) notifyUpdate(result.version);
+    return result;
+  };
+  if (updater && !safeMode) {
+    app
+      .whenReady()
+      .then(() => {
+        const tick = () => {
+          if (updatesOn()) checkUpdate().catch((error) => log("verificar atualização:", error));
+        };
+        setTimeout(tick, UPDATE_FIRST_CHECK_MS).unref?.();
+        setInterval(tick, UPDATE_INTERVAL_MS).unref?.();
+      })
+      .catch((error) => log("agendar atualização:", error));
+  }
+  ipcMain.handle("trivomod:update-status", (event) => (isTrusted(event) ? updateStatus() : null));
+  ipcMain.handle("trivomod:check-update", async (event) => {
+    if (!isTrusted(event) || !updater || safeMode) return { state: "indisponivel" };
+    return checkUpdate();
+  });
+  ipcMain.handle("trivomod:restart-to-update", (event) => {
+    if (!isTrusted(event) || !updater || !updater.status().staged) return false;
+    log("reiniciando para aplicar a atualização");
+    setTimeout(() => {
+      if (!selftest) app.relaunch();
+      app.quit(); // "will-quit" aplica a versão baixada
+    }, 100);
+    return true;
+  });
+
   // ------------------------------------------------------------ temas ao vivo
   let timer = null;
   const broadcast = () => {
@@ -492,12 +578,32 @@ exports.start = function start({ dataDir, appPath }) {
       }
     }, 150);
   };
+  const watchers = [];
   for (const dir of [files.themes, files.layouts, path.join(DIST, "themes"), path.join(DIST, "layouts")]) {
     try {
-      fs.watch(dir, { persistent: false }, broadcast);
+      watchers.push(fs.watch(dir, { persistent: false }, broadcast));
     } catch (error) {
       log(`sem watch em ${dir}:`, error);
     }
+  }
+
+  // Ao fechar: troca para a versão baixada. Antes fecha os watches, que no Windows seguram a pasta
+  // dist e fariam a troca de nome falhar.
+  if (updater) {
+    app.on("will-quit", () => {
+      for (const w of watchers.splice(0)) {
+        try {
+          w.close();
+        } catch {
+          /* já fechado */
+        }
+      }
+      try {
+        updater.applyPending();
+      } catch (error) {
+        log("aplicar atualização ao fechar:", error);
+      }
+    });
   }
   // ------------------------------------------------------------ sonda de desenvolvimento
   // Só existe se a pasta <dados>/dev existir na abertura (quem cria é o desenvolvedor). Escrever

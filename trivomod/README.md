@@ -68,6 +68,28 @@ Feche o Trivo inclusive na bandeja do relógio. Os dados do mod ficam em `%APPDA
   ou copie o Trivo para `~/Applications` e use `--app`.
 - **Atualizar o Trivo apaga o patch**: rode `install` de novo. Para atualizar só o mod, `node bin/trivomod.js update`.
 
+### Atualização automática do mod
+
+O próprio mod se atualiza (`src/main/updater.js`). O patch dentro do Trivo não muda; só `<dados>/dist`.
+
+- **De onde vem:** a última release do GitHub. Cada push no `main` que mexe em `trivomod/` vira release
+  depois de a suíte passar no macOS, Windows e Linux, então quem tem o mod acompanha os commits sem receber
+  o que quebra os testes. A release publica `trivomod-runtime-vX.Y.Z.json.gz` (feito por
+  `tools/build-runtime.js`), e o `SHA256SUMS.txt` cobre esse arquivo também.
+- **Quando:** 30 s depois de abrir e a cada 6 h. O download é conferido pelo SHA-256 e pelo formato
+  (caminhos, versão, JS que compila). Os módulos do processo principal são carregados à parte para ver
+  se sobem, e só então o pacote vai para `<dados>/dist.next`.
+- **Troca:** ao fechar o Trivo (`dist` -> `dist.prev`, `dist.next` -> `dist`), nunca com ele aberto. O
+  aviso "Reiniciar agora" faz isso na hora.
+- **Volta sozinha:** se a versão nova abrir 2 vezes sem chegar ao `boot-ok` da página, na 3ª abertura
+  volta para `dist.prev`, reabre o Trivo e não tenta mais essa versão.
+- **Desligar:** Ajustes › TrivoMod › Sobre › "Atualizar automaticamente", ou `TRIVOMOD_NO_UPDATE=1`.
+  Rodando do código-fonte (fora de `<dados>/dist`), o atualizador nem liga.
+- Instalar/Reparar pelo instalador sempre vence: descarta o que estava baixado esperando.
+- **Limite:** se o módulo principal novo quebrar antes de o atualizador rodar, o Trivo abre sem o mod e
+  não há quem volte a versão. O passo de carregar os módulos à parte existe para pegar isso antes; se
+  acontecer, use **Reparar**.
+
 ## Usar
 
 Painel: **Cmd/Ctrl + Alt + T** ou o botão do TrivoMod (estrela) na barra do topo, ao lado de "Avisos", como o Vencord

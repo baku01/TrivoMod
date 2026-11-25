@@ -56,6 +56,8 @@ Não precisa instalar nada antes — basta baixar o instalador do seu sistema na
    - **Linux:** extraia o `.tar.gz` e execute `./instalar-trivomod.sh`
 3. Clique em **Instalar**. Quando o Trivo atualizar, basta abrir o instalador e clicar em **Reparar**. Para voltar ao original, clique em **Desinstalar**.
 
+O TrivoMod **se atualiza sozinho**: cada nova versão publicada aqui é baixada em segundo plano e entra quando você fecha e abre o Trivo. Se uma versão nova não abrir direito, ele volta sozinho para a anterior. Dá para desligar em **Ajustes › TrivoMod › Sobre**.
+
 ### Pelo código-fonte
 
 ```sh

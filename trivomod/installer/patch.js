@@ -18,6 +18,7 @@ const cp = require("node:child_process");
 const asar = require("./asar");
 const winexe = require("./winexe");
 const { dataDir } = require("../src/paths");
+const { resetForManualInstall } = require("../src/main/updater");
 
 const BUNDLE_ID = "br.app.trivo.desktop";
 const PACKAGE_NAME = "@trivo/desktop";
@@ -195,6 +196,8 @@ function syncDist(dir = dataDir()) {
   fs.mkdirSync(dir, { recursive: true });
   fs.rmSync(dist, { recursive: true, force: true });
   copyDir(SRC, dist);
+  // Instalação à mão vence: descarta download pendente e confirmação de versão em espera.
+  resetForManualInstall(dir);
   fs.mkdirSync(path.join(dir, "themes"), { recursive: true });
   fs.mkdirSync(path.join(dir, "plugins"), { recursive: true });
   return dist;

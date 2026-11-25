@@ -16,6 +16,7 @@ function defaults() {
   return {
     version: 1,
     showButton: true,
+    autoUpdate: true,
     layout: "",
     themes: {},
     plugins: {},
@@ -43,6 +44,7 @@ function sanitize(input) {
   const out = defaults();
   if (!isObject(input)) return out;
   out.showButton = input.showButton !== false;
+  out.autoUpdate = input.autoUpdate !== false;
   if (typeof input.layout === "string" && validKey(input.layout)) out.layout = input.layout;
   for (const field of ["themes", "plugins"]) {
     if (!isObject(input[field])) continue;
