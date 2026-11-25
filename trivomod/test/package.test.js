@@ -12,9 +12,9 @@ const path = require("node:path");
 
 const ROOT = path.resolve(__dirname, "..");
 
-function stagePackage() {
-  const base = fs.mkdtempSync(path.join(os.tmpdir(), "trivomod pacote-"));
-  const app = path.join(base, "Usuário Teste", "TrivoMod");
+function stagePackage(tmp = os.tmpdir(), user = "Usuário Teste") {
+  const base = fs.mkdtempSync(path.join(tmp, "trivomod pacote-"));
+  const app = path.join(base, user, "TrivoMod");
   fs.mkdirSync(path.join(app, "installer"), { recursive: true });
   for (const item of ["bin", "src", "package.json", "README.md"]) fs.cpSync(path.join(ROOT, item), path.join(app, item), { recursive: true });
   for (const f of fs.readdirSync(path.join(ROOT, "installer"))) {
@@ -85,4 +85,18 @@ test("pacote de release: instalador gráfico serve a página e o logo", async (t
 
   assert.equal(await get(url), 200);
   assert.equal(await get(`${url}trivo-logo.webp`), 200);
+});
+
+test("DIAG", () => {
+  const variants = [];
+  for (const [tn, tmp] of [["short", os.tmpdir()], ["long", fs.realpathSync.native(os.tmpdir())]])
+    for (const user of ["Usuário Teste", "Usuario Teste"]) {
+      const pkg = stagePackage(tmp, user);
+      let r;
+      try { runCli(pkg, ["paths"]); r = "OK"; } catch (e) { r = "FAIL " + String(e.message).split("\n")[1]; }
+      try { cp.execFileSync(process.execPath, ["-e", "1"], { cwd: pkg.app }); } catch { r += " cwdfail"; }
+      variants.push(`${tn} ${user}: ${r}`);
+      fs.rmSync(pkg.base, { recursive: true, force: true });
+    }
+  console.log("DIAGRESULT " + JSON.stringify(variants));
 });
