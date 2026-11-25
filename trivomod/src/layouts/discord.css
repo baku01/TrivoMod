@@ -22,7 +22,7 @@ html:root[data-tema] {
   --botao-altura: 38px;
   --botao-peso: 500;
   --botao-fonte: .875rem;
-  --font-ui: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-ui: "gg sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --message-group-gap: 17px;
   --message-row-padding: 2px;
   --message-continuation-padding: 1px;

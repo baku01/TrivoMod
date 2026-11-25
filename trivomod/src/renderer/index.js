@@ -83,7 +83,14 @@
     // Enquanto uma seção do TrivoMod está aberta nos Ajustes, a seção do Trivo deixa de parecer selecionada.
     wanted.unshift(sheet("core", `[data-trivomod-ativo] button[aria-current]:not([data-trivomod]) { background: transparent !important; color: var(--text-secondary) !important; }
       [data-trivomod-ativo] button[aria-current]:not([data-trivomod]) svg { color: inherit !important; }
-      #trivomod-settings-view[hidden] { display: none !important; }`));
+      #trivomod-settings-view[hidden] { display: none !important; }
+      html, body { font-optical-sizing: auto; text-rendering: auto !important; }
+      @media (max-resolution: 1.5dppx) {
+        html, body { -webkit-font-smoothing: subpixel-antialiased !important; text-rendering: optimizeSpeed !important; }
+      }
+      @media (min-resolution: 1.5dppx) {
+        html, body { -webkit-font-smoothing: antialiased !important; }
+      }`));
     const mine = new Set(sheets.values());
     document.adoptedStyleSheets = [...document.adoptedStyleSheets.filter((s) => !mine.has(s)), ...wanted];
     queueFrame();
@@ -347,7 +354,11 @@
   // ------------------------------------------------------------ interface
   const UI_CSS = `
     :host { all: initial; --tm-font: var(--font-ui, system-ui, sans-serif); --tm-radius: 12px; --tm-ctl-radius: 6px;
-      --tm-accent: var(--accent, #7aa2f7); --tm-on-accent: var(--text-on-accent, #fff); }
+      --tm-accent: var(--accent, #7aa2f7); --tm-on-accent: var(--text-on-accent, #fff);
+      font-optical-sizing: auto; text-rendering: auto; -webkit-font-smoothing: antialiased; }
+    @media (max-resolution: 1.5dppx) {
+      :host { -webkit-font-smoothing: subpixel-antialiased; text-rendering: optimizeSpeed; }
+    }
     :host([data-plat=mac]) { --tm-radius: 12px; --tm-ctl-radius: 6px; }
     :host([data-plat=win]) { --tm-radius: 8px; --tm-ctl-radius: 4px; }
     :host([data-font=system][data-plat=mac]) { --tm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; }

@@ -138,7 +138,8 @@ function createNativeManager({ electron, log = () => {}, settings = () => ({}), 
     if (p.enabled && p.systemFont) {
       rules.push(platform === "win32"
         ? `body { font: 400 12px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif !important; }`
-        : `body { font: 600 13px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important; }`);
+        : `body { font: 600 13px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important; -webkit-font-smoothing: antialiased; }
+           @media (max-resolution: 1.5dppx) { body { -webkit-font-smoothing: subpixel-antialiased; } }`);
     }
     if (p.enabled && platform === "win32") {
       // Botões de legenda do Windows 11: 46 × 32, fechar vermelho #c42b1c.
@@ -327,7 +328,8 @@ function createNativeManager({ electron, log = () => {}, settings = () => ({}), 
     const apagado = p.apagado || p.forte;
     const borda = p.borda || mix(p.forte, "transparent", 12);
     const radius = platform === "win32" ? 4 : 6;
-    const rules = [`body { font-family: ${font} !important; }`];
+    const rules = [`body { font-family: ${font} !important; -webkit-font-smoothing: antialiased; font-optical-sizing: auto; }
+      @media (max-resolution: 1.5dppx) { body { -webkit-font-smoothing: subpixel-antialiased; } }`];
     if (screen === "picker" || screen === "fullscreen-notice") {
       rules.unshift(`:root { --bg: ${p.cartao} !important; --field: ${mix(p.forte, "transparent", 5)} !important; --line: ${borda} !important;
         --line-strong: ${borda} !important; --strong: ${p.forte} !important; --muted: ${apagado} !important; --faint: ${mix(apagado, "transparent", 75)} !important;
